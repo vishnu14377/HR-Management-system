@@ -288,6 +288,8 @@ def _prereqs():
 def _finish_setup():
 	"""Mark ERPNext setup complete so the (janky) setup wizard never blocks login."""
 	frappe.db.set_single_value("System Settings", "setup_complete", 1)
+	frappe.db.set_single_value("Global Defaults", "default_currency", "USD")
+	frappe.db.set_default("currency", "USD")
 	if not frappe.db.exists("Fiscal Year", "2026"):
 		frappe.get_doc(
 			{

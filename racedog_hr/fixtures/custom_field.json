@@ -215,5 +215,15 @@
   "read_only": 1,
   "description": "Auto-computed: Bill Rate minus Pay Rate.",
   "insert_after": "racedog_rates_col"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-racedog_end_section",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "racedog_end_section",
+  "fieldtype": "Section Break",
+  "label": "Job & Organization",
+  "insert_after": "margin"
  }
 ]

@@ -72,6 +72,7 @@ DEMO_USERS = [
 
 def seed():
 	frappe.set_user("Administrator")
+	_run("prereqs", _prereqs)
 	_run("company", _company)
 	_run("masters", _masters)
 	consultants = _run("consultants", _consultants) or []
@@ -249,3 +250,48 @@ def _safe_insert(doctype, values, key):
 		frappe.get_doc({"doctype": doctype, **values}).insert(ignore_permissions=True)
 	except Exception as e:
 		print(f"  {doctype} {key} skipped: {repr(e)[:160]}")
+
+
+def _prereqs():
+	"""Records a fresh ERPNext site (setup wizard never run) is missing."""
+	for gender in ("Male", "Female", "Other"):
+		_safe_insert("Gender", {"gender": gender}, gender)
+
+
+def verify():
+	"""Prove the rate/margin firewall: recruiter can't see rates, manager can.
+
+	Run: from racedog_hr.demo import verify; verify()
+	"""
+	report = {}
+
+	frappe.set_user("recruiter@racedog.test")
+	from racedog_hr.api import get_bench
+
+	bench = get_bench()
+	report["recruiter_bench_rows"] = len(bench["data"])
+	report["recruiter_api_leaks_rate"] = any(
+		"rate" in key for row in bench["data"] for key in row
+	)
+	report["recruiter_getlist_rate"] = _peek_rate()
+
+	frappe.set_user("manager@racedog.test")
+	report["manager_getlist_rate"] = _peek_rate()
+
+	frappe.set_user("Administrator")
+	print("VERIFY:", report)
+	return report
+
+
+def _peek_rate():
+	"""Return the current_bill_rate the current user can read (or how it was blocked)."""
+	try:
+		rows = frappe.get_list(
+			"Employee", fields=["name", "current_bill_rate"], limit=1, order_by="creation asc"
+		)
+	except Exception as e:
+		return f"BLOCKED({type(e).__name__})"
+	if not rows:
+		return "no-rows"
+	value = rows[0].get("current_bill_rate")
+	return "hidden" if value in (None, 0) else f"VISIBLE({value})"

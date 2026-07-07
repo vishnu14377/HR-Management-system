@@ -69,3 +69,6 @@ doc_events = {
 # Color the Employee list rows by deployment status (v15 has no native Select
 # option colors, so this drives the list indicator).
 doctype_list_js = {"Employee": "public/js/employee_list.js"}
+
+# BambooHR-inspired theme applied across the whole Desk.
+app_include_css = "/assets/racedog_hr/css/bamboo_theme.css"

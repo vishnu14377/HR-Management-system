@@ -11,9 +11,9 @@
 	--rdg-text: #16181d;
 	--rdg-muted: #6a7280;
 	--rdg-faint: #9aa1ab;
-	--rdg-ink: #16181d;
-	--rdg-ink-hover: #2a2d34;
-	--rdg-shadow: 12px 16px 40px -24px rgba(20, 22, 26, 0.35);
+	--rdg-ink: #7ac142;
+	--rdg-ink-hover: #66a832;
+	--rdg-shadow: 10px 14px 34px -22px rgba(60, 90, 30, 0.4);
 	--rdg-radius-card: 14px;
 	--rdg-radius-ctl: 10px;
 

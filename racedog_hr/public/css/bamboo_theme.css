@@ -1,0 +1,130 @@
+/* BambooHR-inspired theme for RaceDog HR on Frappe Desk.
+   Fresh grassy-green primary, warm neutrals, rounded friendly surfaces, clean white nav.
+   Loaded globally via app_include_css. Kept targeted so it doesn't fight Desk internals. */
+
+:root {
+	--rdg-green: #7ac142;
+	--rdg-green-600: #66a832;
+	--rdg-green-700: #558c29;
+	--rdg-green-050: #eef7e3;
+	--rdg-slate: #43484d;
+
+	/* Nudge Frappe's own accent tokens toward green where they exist. */
+	--primary: #7ac142;
+	--primary-color: #7ac142;
+	--btn-primary: #7ac142;
+	--text-on-primary: #ffffff;
+	--awesomplete-hover: #eef7e3;
+	--sidebar-select-color: #eef7e3;
+	--checkbox-color: #7ac142;
+}
+
+/* Warm off-white app background + friendly base text. */
+body {
+	background-color: #f4f6f8;
+	color: var(--rdg-slate);
+}
+
+/* Clean white top nav with a hairline + whisper shadow. */
+.navbar {
+	background: #ffffff !important;
+	border-bottom: 1px solid #e7ebee !important;
+	box-shadow: 0 1px 3px rgba(20, 30, 20, 0.05);
+}
+
+/* Primary actions -> BambooHR green, rounded, a touch of lift. */
+.btn-primary,
+.btn.btn-primary,
+.page-actions .primary-action {
+	background-color: var(--rdg-green) !important;
+	border-color: var(--rdg-green) !important;
+	color: #fff !important;
+	border-radius: 8px;
+	font-weight: 600;
+	box-shadow: 0 1px 2px rgba(85, 140, 40, 0.25);
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.page-actions .primary-action:hover {
+	background-color: var(--rdg-green-600) !important;
+	border-color: var(--rdg-green-600) !important;
+	color: #fff !important;
+}
+.btn {
+	border-radius: 8px;
+}
+
+/* Links + primary text -> green. */
+a,
+.text-primary,
+.ellipsis.text-primary {
+	color: var(--rdg-green-700);
+}
+a:hover {
+	color: var(--rdg-green-600);
+}
+
+/* Selected workspace / sidebar item -> soft green highlight. */
+.standard-sidebar-item.selected,
+.sidebar-item-container > .desk-sidebar-item.selected {
+	background-color: var(--rdg-green-050) !important;
+	border-radius: 8px;
+}
+.standard-sidebar-item.selected .sidebar-item-label,
+.standard-sidebar-item.selected .item-anchor {
+	color: var(--rdg-green-700) !important;
+	font-weight: 600;
+}
+.standard-sidebar-item.selected svg,
+.standard-sidebar-item.selected use {
+	stroke: var(--rdg-green-700) !important;
+}
+
+/* Cards, widgets, form sections -> rounded + soft, layered like BambooHR. */
+.widget,
+.frappe-card,
+.form-section.card-section,
+.dashboard-section,
+.number-widget-box {
+	border-radius: 12px !important;
+	border: 1px solid #eceef1;
+	box-shadow: 0 1px 3px rgba(30, 40, 30, 0.05), 0 1px 2px rgba(30, 40, 30, 0.04);
+}
+
+/* Inputs -> rounded, green focus ring. */
+.form-control,
+.input-with-feedback,
+select.form-control,
+.awesomplete > input {
+	border-radius: 8px;
+}
+.form-control:focus,
+.input-with-feedback:focus {
+	border-color: var(--rdg-green) !important;
+	box-shadow: 0 0 0 2px rgba(122, 193, 66, 0.22) !important;
+}
+input[type="checkbox"],
+input[type="radio"] {
+	accent-color: var(--rdg-green);
+}
+
+/* Page + section titles -> friendly, confident. */
+.page-title .title-text,
+.form-section .section-head,
+.widget-head .widget-title {
+	color: #33393e;
+	font-weight: 700;
+}
+
+/* Primary-ish green indicator pills (keep other semantic colors intact). */
+.indicator-pill.green,
+.indicator-pill-round.green {
+	background: var(--rdg-green-050);
+	color: var(--rdg-green-700);
+}
+
+/* Avatar frames a little friendlier. */
+.avatar .avatar-frame {
+	border-radius: 10px;
+}

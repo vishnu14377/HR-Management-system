@@ -15,13 +15,19 @@
  "name": "Submission Funnel",
  "owner": "Administrator",
  "prepared_report": 0,
- "query": "select\n  sub.submitted_by as \"Recruiter:Data:200\",\n  count(*) as \"Total:Int:80\",\n  sum(sub.status = 'Submitted') as \"Submitted:Int:100\",\n  sum(sub.status in ('Under Review')) as \"Review:Int:90\",\n  sum(sub.status in ('Interview Scheduled','Interview Done')) as \"Interview:Int:100\",\n  sum(sub.status = 'Offer') as \"Offer:Int:70\",\n  sum(sub.status = 'Placed') as \"Placed:Int:70\",\n  sum(sub.status in ('Rejected','Withdrawn')) as \"Closed:Int:70\"\nfrom `tabSubmission` sub\ngroup by sub.submitted_by\norder by count(*) desc",
+ "query": "",
  "ref_doctype": "Submission",
  "report_name": "Submission Funnel",
  "report_type": "Query Report",
  "roles": [
-  {"role": "Recruiting Manager"},
-  {"role": "System Manager"},
-  {"role": "Account Manager"}
+  {
+   "role": "Recruiting Manager"
+  },
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Account Manager"
+  }
  ]
 }

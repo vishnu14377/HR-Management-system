@@ -10,7 +10,7 @@
   "icon": "users",
   "indicator_color": "green",
   "sequence_id": 25.0,
-  "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Bench &amp; Requirements</b></span>\", \"col\": 12}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Consultants On Bench\", \"col\": 4}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Open Requirements\", \"col\": 4}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Submissions\", \"col\": 4}}, {\"id\": \"shd\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Shortcuts</b></span>\", \"col\": 12}}, {\"id\": \"s0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bench Board\", \"col\": 3}}, {\"id\": \"s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Open Requirements\", \"col\": 3}}, {\"id\": \"s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bench List\", \"col\": 3}}, {\"id\": \"s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"My Submissions\", \"col\": 3}}, {\"id\": \"chd\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Data</b></span>\", \"col\": 12}}, {\"id\": \"c1\", \"type\": \"card\", \"data\": {\"card_name\": \"Recruiting\", \"col\": 6}}, {\"id\": \"c2\", \"type\": \"card\", \"data\": {\"card_name\": \"Masters\", \"col\": 6}}]",
+  "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Bench &amp; Requirements</b></span>\", \"col\": 12}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Consultants On Bench\", \"col\": 4}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Open Requirements\", \"col\": 4}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Submissions\", \"col\": 4}}, {\"id\": \"shd\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Shortcuts</b></span>\", \"col\": 12}}, {\"id\": \"s0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bench Board\", \"col\": 3}}, {\"id\": \"s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Open Requirements\", \"col\": 3}}, {\"id\": \"s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bench List\", \"col\": 3}}, {\"id\": \"s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"My Submissions\", \"col\": 3}}, {\"id\": \"chd\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Data</b></span>\", \"col\": 12}}, {\"id\": \"c1\", \"type\": \"card\", \"data\": {\"card_name\": \"Recruiting\", \"col\": 6}}, {\"id\": \"c2\", \"type\": \"card\", \"data\": {\"card_name\": \"Masters\", \"col\": 6}}, {\"id\": \"c3\", \"type\": \"card\", \"data\": {\"card_name\": \"Reports & Analytics\", \"col\": 6}}]",
   "number_cards": [
    {
     "label": "Consultants On Bench",
@@ -111,6 +111,25 @@
     "label": "Work Authorization",
     "link_to": "Work Authorization",
     "link_type": "DocType"
+   },
+   {
+    "type": "Card Break",
+    "label": "Reports & Analytics",
+    "hidden": 0,
+    "onboard": 0
+   },
+   {
+    "type": "Link",
+    "label": "Bench Health",
+    "link_to": "Bench Health",
+    "link_type": "Report",
+    "onboard": 1
+   },
+   {
+    "type": "Link",
+    "label": "Submission Funnel",
+    "link_to": "Submission Funnel",
+    "link_type": "Report"
    }
   ]
  }

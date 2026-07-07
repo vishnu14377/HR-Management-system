@@ -15,7 +15,8 @@ RECRUITING_ROLES = ("Recruiter", "Bench Sales", "Recruiting Manager", "Account M
 EMPLOYEE_GRANTS = (
 	("Recruiter", 0, ("read", "write")),
 	("Bench Sales", 0, ("read", "write")),
-	("Recruiting Manager", 0, ("read", "write")),
+	# The manager owns the consultant master — full CRUD, incl. create + delete.
+	("Recruiting Manager", 0, ("read", "write", "create", "delete")),
 	("Recruiting Manager", 1, ("read", "write")),
 	("Account Manager", 0, ("read",)),
 	("Account Manager", 1, ("read",)),

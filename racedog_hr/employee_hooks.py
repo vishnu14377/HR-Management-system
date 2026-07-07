@@ -17,10 +17,13 @@ def apply_status_rules(doc, method: str | None = None) -> None:
 	if status == "Working":
 		# On a billing project -> not on the market.
 		doc.hotlist = "Green"
-	else:
-		if not doc.get("hotlist"):
-			doc.hotlist = "Red" if status == "Marketing" else "Orange"
-		# Not placed right now -> no current client.
+	elif not doc.get("hotlist"):
+		# Marketing = market hard (Red); On Bench / Rolling-Off default to Orange.
+		doc.hotlist = "Red" if status == "Marketing" else "Orange"
+
+	# Only actively-placed states keep a current client (Rolling-Off is still on a
+	# project, just ending — so it keeps its client and gets marketed early).
+	if status not in ("Working", "Rolling-Off"):
 		doc.current_client = None
 
 	# Margin is a manager-only computed number (server bypasses permlevel).

@@ -17,7 +17,7 @@
   "fieldname": "deployment_status",
   "fieldtype": "Select",
   "label": "Status",
-  "options": "Working\nOn Bench\nMarketing",
+  "options": "Working\nRolling-Off\nOn Bench\nMarketing",
   "default": "On Bench",
   "in_list_view": 1,
   "in_standard_filter": 1,

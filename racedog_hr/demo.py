@@ -52,8 +52,11 @@ CONSULTANTS = [
 	("Dev", "Patel", "Male", "Data Engineer", "H1B", "On Bench", "Red", -20, 98, 70, None),
 	("Hana", "Okafor", "Female", "Salesforce", "GC-EAD", "On Bench", "Green", 7, 95, 72, None),
 	("Liam", "Novak", "Male", "DevOps", "TN", "Working", "Green", 0, 100, 76, "Cobalt Financial"),
-	("Aisha", "Rahman", "Female", "SAP", "USC", "Working", "Green", 0, 120, 90, "Vertex Logistics"),
+	("Aisha", "Rahman", "Female", "SAP", "USC", "Rolling-Off", "Red", 14, 120, 90, "Vertex Logistics"),
 ]
+
+# All demo consultants are owned/marketed by the demo recruiter.
+DEMO_MARKETING_OWNER = "recruiter@racedog.test"
 
 # title, client, skill, priority, location, work_mode, max_bill
 REQUIREMENTS = [
@@ -76,7 +79,9 @@ def seed():
 	_run("company", _company)
 	_run("finish_setup", _finish_setup)
 	_run("masters", _masters)
+	_run("users", _users)  # before consultants so marketing_owner resolves
 	consultants = _run("consultants", _consultants) or []
+	_run("documents", lambda: _documents(consultants))
 	requirements = _run("requirements", _requirements) or []
 	_run("submissions", lambda: _submissions(consultants, requirements))
 	_run("users", _users)
@@ -158,6 +163,9 @@ def _consultants():
 					"deployment_status": status,
 					"hotlist": hotlist,
 					"current_client": client,
+					"marketing_owner": DEMO_MARKETING_OWNER
+					if frappe.db.exists("User", DEMO_MARKETING_OWNER)
+					else None,
 					"primary_skill": skill,
 					"consultant_skills": [{"skill": skill}],
 					"visa_status": visa,
@@ -172,6 +180,40 @@ def _consultants():
 		except Exception as e:
 			print(f"  consultant {first} {last} skipped: {repr(e)[:160]}")
 	return created
+
+
+def _documents(consultants):
+	"""Attach sample private docs (resume, work-auth) to a few consultants so the
+	recruiter download flow has something real to pull."""
+	if not consultants:
+		return
+	samples = (
+		("Resume", "resume.txt", "SAMPLE RESUME\n8+ yrs, cloud + backend engineering. (demo file)"),
+		("Work Authorization (EAD/I-797)", "work_auth.txt", "SAMPLE I-797 approval notice. (demo file)"),
+	)
+	for emp in consultants[:3]:
+		doc = frappe.get_doc("Employee", emp)
+		if doc.get("documents"):
+			continue
+		try:
+			for dtype, fname, content in samples:
+				f = frappe.get_doc(
+					{
+						"doctype": "File",
+						"file_name": f"{emp}-{fname}",
+						"attached_to_doctype": "Employee",
+						"attached_to_name": emp,
+						"is_private": 1,
+						"content": content,
+					}
+				).insert(ignore_permissions=True)
+				doc.append(
+					"documents",
+					{"document_type": dtype, "document": f.file_url, "uploaded_on": nowdate()},
+				)
+			doc.save(ignore_permissions=True)
+		except Exception as e:
+			print(f"  documents for {emp} skipped: {repr(e)[:160]}")
 
 
 def _requirements():

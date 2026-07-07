@@ -49,11 +49,12 @@ UPDATABLE_BENCH_FIELDS = frozenset(
 	}
 )
 
-VALID_DEPLOYMENT_STATUSES = frozenset({"Working", "On Bench", "Marketing"})
+VALID_DEPLOYMENT_STATUSES = frozenset({"Working", "Rolling-Off", "On Bench", "Marketing"})
 VALID_HOTLIST = frozenset({"Red", "Orange", "Green"})
 
-# Consultants shown on the board by default: not currently placed = available to market.
-DEFAULT_BENCH_STATUSES = ["On Bench", "Marketing"]
+# Consultants shown on the board by default: available to market now or soon
+# (Rolling-Off = still on a project but ending, so market early).
+DEFAULT_BENCH_STATUSES = ["Rolling-Off", "On Bench", "Marketing"]
 
 # Sort order for the hotlist: Red (hottest) first.
 _HOTLIST_ORDER = {"Red": 0, "Orange": 1, "Green": 2}

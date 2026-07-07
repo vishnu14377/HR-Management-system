@@ -16,6 +16,7 @@ const STATUS_CHIPS = [
 	{ label: "Bench", value: "" },
 	{ label: "All", value: "All" },
 	{ label: "Working", value: "Working" },
+	{ label: "Rolling-Off", value: "Rolling-Off" },
 	{ label: "On Bench", value: "On Bench" },
 	{ label: "Marketing", value: "Marketing" },
 ];
@@ -309,6 +310,17 @@ class BenchBoard {
 						5
 					);
 				}
+			},
+			error: () => {
+				// Double-submission / RTR blocks throw server-side; make sure the
+				// recruiter sees it clearly (a blocked drop shouldn't look like a no-op).
+				frappe.show_alert(
+					{
+						message: __("Submission blocked — likely a duplicate or a right-to-represent conflict. See the message."),
+						indicator: "red",
+					},
+					8
+				);
 			},
 		});
 	}

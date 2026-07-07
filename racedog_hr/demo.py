@@ -286,10 +286,17 @@ def _prereqs():
 
 
 def _finish_setup():
-	"""Mark ERPNext setup complete so the (janky) setup wizard never blocks login."""
+	"""Mark ERPNext setup complete so the (janky) setup wizard never blocks login.
+
+	The site is created with desktop:home_page = "setup-wizard"; since we bypass the
+	wizard, that default routes every login through the wizard (the "flashing"). Point
+	it at the board and mark onboarding complete so nothing flashes.
+	"""
 	frappe.db.set_single_value("System Settings", "setup_complete", 1)
 	frappe.db.set_single_value("Global Defaults", "default_currency", "USD")
 	frappe.db.set_default("currency", "USD")
+	frappe.db.set_default("desktop:home_page", "bench-board")
+	frappe.db.sql("update `tabModule Onboarding` set is_complete=1")
 	if not frappe.db.exists("Fiscal Year", "2026"):
 		frappe.get_doc(
 			{

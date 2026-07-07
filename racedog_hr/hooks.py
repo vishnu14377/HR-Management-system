@@ -11,6 +11,11 @@ app_license = "mit"
 # racedog_hr is an extension of HRMS; require it so Employee/HR modules exist.
 required_apps = ["frappe/hrms"]
 
+# Apply role/permlevel permissions and indexes after fixtures, every time — so a
+# fixture hiccup during install can never leave the rate firewall half-applied.
+after_install = "racedog_hr.setup.after_install"
+after_migrate = "racedog_hr.setup.after_migrate"
+
 # ---------------------------------------------------------------------------
 # Fixtures — the whole config schema travels with the app and is re-applied on
 # `bench migrate`. This is what keeps the customization upgrade-safe and

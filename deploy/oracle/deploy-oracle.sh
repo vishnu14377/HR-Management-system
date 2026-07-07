@@ -20,7 +20,7 @@ LE_EMAIL="admin@racedogtechnologies.com"   # for the free Let's Encrypt certific
 DB_PASSWORD="CHANGE_ME_db_password"        # MariaDB root password (make it strong)
 ADMIN_PASSWORD="CHANGE_ME_admin_password"  # Frappe 'Administrator' login password
 APP_REPO="https://github.com/vishnu14377/HR-Management-system"
-APP_BRANCH="feat/racedog-hr-app"
+APP_BRANCH="main"
 # ===================================================================
 
 FRAPPE_BRANCH="version-15"

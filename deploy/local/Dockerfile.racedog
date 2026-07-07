@@ -1,0 +1,7 @@
+# Derived from the base (frappe+erpnext+hrms). Pulls racedog_hr from the public repo
+# so it's present in every container (backend, workers, scheduler) that uses this image.
+FROM racedog-base:latest
+USER frappe
+WORKDIR /home/frappe/frappe-bench
+RUN bench get-app --branch feat/racedog-hr-app https://github.com/vishnu14377/HR-Management-system.git \
+ && (bench build --app racedog_hr || echo "racedog_hr: no bundle build needed, continuing")

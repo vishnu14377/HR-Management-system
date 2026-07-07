@@ -4,4 +4,9 @@ FROM racedog-base:latest
 USER frappe
 WORKDIR /home/frappe/frappe-bench
 RUN bench get-app --branch feat/racedog-hr-app https://github.com/vishnu14377/HR-Management-system.git \
- && (bench build --app racedog_hr || echo "racedog_hr: no bundle build needed, continuing")
+ && (bench build --app racedog_hr || echo "racedog_hr: no bundle build needed, continuing") \
+ && ln -sfn /home/frappe/frappe-bench/apps/racedog_hr/racedog_hr/public \
+      /home/frappe/frappe-bench/sites/assets/racedog_hr
+# The symlink above is what makes the frontend nginx serve the app's bundled CSS
+# (app_include_css). frappe/erpnext get theirs from their image build; a custom app
+# needs it added explicitly, or the theme 404s from the frontend container.

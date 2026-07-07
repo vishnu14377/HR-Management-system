@@ -1,8 +1,14 @@
 # It's running — how to use it
 
 A full stack (Frappe + ERPNext + HRMS + **racedog_hr**) is running locally in Docker,
-tailored for a pure IT-outsourcing consulting firm and seeded with demo data.
-Screenshots are on your Desktop in `racedog-demo-screenshots/`.
+tailored for a pure IT-outsourcing consulting firm, given a **BambooHR-inspired green
+theme**, and seeded with demo data. Screenshots are on your Desktop in
+`racedog-demo-screenshots/`.
+
+> The old "setup wizard flashing" is fixed for good — the site's home page was pointing
+> at the wizard; it now lands on the Bench Board. If the theme ever looks unstyled after
+> a full container **recreate**, run `deploy/local/theme-fix.sh` once (frappe_docker keeps
+> custom-app assets per-container). Normal stop/start keeps everything.
 
 ## Open it
 

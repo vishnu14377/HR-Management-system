@@ -74,6 +74,7 @@ def seed():
 	frappe.set_user("Administrator")
 	_run("prereqs", _prereqs)
 	_run("company", _company)
+	_run("finish_setup", _finish_setup)
 	_run("masters", _masters)
 	consultants = _run("consultants", _consultants) or []
 	requirements = _run("requirements", _requirements) or []
@@ -256,6 +257,22 @@ def _prereqs():
 	"""Records a fresh ERPNext site (setup wizard never run) is missing."""
 	for gender in ("Male", "Female", "Other"):
 		_safe_insert("Gender", {"gender": gender}, gender)
+
+
+def _finish_setup():
+	"""Mark ERPNext setup complete so the (janky) setup wizard never blocks login."""
+	frappe.db.set_single_value("System Settings", "setup_complete", 1)
+	if not frappe.db.exists("Fiscal Year", "2026"):
+		frappe.get_doc(
+			{
+				"doctype": "Fiscal Year",
+				"year": "2026",
+				"year_start_date": "2026-01-01",
+				"year_end_date": "2026-12-31",
+			}
+		).insert(ignore_permissions=True)
+	if frappe.db.exists("Company", COMPANY):
+		frappe.db.set_single_value("Global Defaults", "default_company", COMPANY)
 
 
 def verify():

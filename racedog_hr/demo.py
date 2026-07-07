@@ -1,9 +1,14 @@
 # Copyright (c) 2026, RaceDog Technologies and contributors
-"""Idempotent demo-data seeder. Run: bench --site <site> execute racedog_hr.demo.seed
+"""Idempotent demo-data seeder.
+
+Run:  bench --site <site> console  then  `from racedog_hr.demo import seed; seed()`
 
 Creates a company, staffing masters, consultants on the bench, open client
 requirements, a couple of submissions, and two demo logins (a recruiter who
 cannot see rates, and a manager who can) so the app is immediately explorable.
+
+Commits after every phase and tolerates per-record errors, so a partial failure
+never rolls the whole thing back.
 """
 
 import frappe
@@ -38,7 +43,7 @@ VENDORS = [
 	("TriState Staffing", "Sub Vendor"),
 ]
 
-# name, gender, skill, visa, deployment_status, days_until_available, bill, pay
+# first, last, gender, skill, visa, deployment_status, days_until_available, bill, pay
 CONSULTANTS = [
 	("Priya", "Nair", "Female", "Python", "H1B", "On Bench", -12, 92, 68),
 	("Marcus", "Bell", "Male", "Java", "USC", "On Bench", -5, 105, 80),
@@ -67,58 +72,64 @@ DEMO_USERS = [
 
 def seed():
 	frappe.set_user("Administrator")
-	_company()
-	_masters()
-	consultants = _consultants()
-	requirements = _requirements()
-	_submissions(consultants, requirements)
-	_users()
-	frappe.db.commit()
+	_run("company", _company)
+	_run("masters", _masters)
+	consultants = _run("consultants", _consultants) or []
+	requirements = _run("requirements", _requirements) or []
+	_run("submissions", lambda: _submissions(consultants, requirements))
+	_run("users", _users)
 	summary = {
-		"company": COMPANY,
-		"consultants": len(consultants),
-		"requirements": len(requirements),
-		"users": [u[0] for u in DEMO_USERS],
+		"company": frappe.db.count("Company"),
+		"consultants": frappe.db.count("Employee", {"status": "Active"}),
+		"requirements": frappe.db.count("Client Requirement"),
+		"submissions": frappe.db.count("Submission"),
+		"users": [u[0] for u in DEMO_USERS if frappe.db.exists("User", u[0])],
 		"password": DEMO_PASSWORD,
 	}
 	print("SEED DONE:", summary)
 	return summary
 
 
+def _run(label, fn):
+	"""Run a phase, commit it, and never let one phase abort the rest."""
+	try:
+		result = fn()
+		frappe.db.commit()
+		print(f"SEED phase ok: {label}")
+		return result
+	except Exception as e:
+		frappe.db.rollback()
+		print(f"SEED phase FAILED: {label}: {repr(e)[:300]}")
+		return None
+
+
 def _company():
-	if not frappe.db.exists("Company", COMPANY):
-		frappe.get_doc(
-			{
-				"doctype": "Company",
-				"company_name": COMPANY,
-				"abbr": "RDT",
-				"default_currency": "USD",
-				"country": "United States",
-			}
-		).insert(ignore_permissions=True)
+	if frappe.db.exists("Company", COMPANY):
+		return
+	# Fresh ERPNext site never ran the setup wizard, so a default record the
+	# Company's warehouse creation references is missing. Create it first.
+	if not frappe.db.exists("Warehouse Type", "Transit"):
+		frappe.get_doc({"doctype": "Warehouse Type", "name": "Transit"}).insert(ignore_permissions=True)
+	frappe.get_doc(
+		{
+			"doctype": "Company",
+			"company_name": COMPANY,
+			"abbr": "RDT",
+			"default_currency": "USD",
+			"country": "United States",
+		}
+	).insert(ignore_permissions=True)
 
 
 def _masters():
 	for name, sponsor in WORK_AUTHS:
-		if not frappe.db.exists("Work Authorization", name):
-			frappe.get_doc(
-				{"doctype": "Work Authorization", "work_auth": name, "requires_sponsorship": sponsor}
-			).insert(ignore_permissions=True)
+		_safe_insert("Work Authorization", {"work_auth": name, "requires_sponsorship": sponsor}, name)
 	for name, category in SKILLS:
-		if not frappe.db.exists("Skill", name):
-			frappe.get_doc({"doctype": "Skill", "skill_name": name, "category": category}).insert(
-				ignore_permissions=True
-			)
+		_safe_insert("Skill", {"skill_name": name, "category": category}, name)
 	for name in CLIENTS:
-		if not frappe.db.exists("Client", name):
-			frappe.get_doc({"doctype": "Client", "client_name": name, "status": "Active"}).insert(
-				ignore_permissions=True
-			)
+		_safe_insert("Client", {"client_name": name, "status": "Active"}, name)
 	for name, vtype in VENDORS:
-		if not frappe.db.exists("Vendor", name):
-			frappe.get_doc(
-				{"doctype": "Vendor", "vendor_name": name, "vendor_type": vtype, "status": "Active"}
-			).insert(ignore_permissions=True)
+		_safe_insert("Vendor", {"vendor_name": name, "vendor_type": vtype, "status": "Active"}, name)
 
 
 def _consultants():
@@ -128,28 +139,31 @@ def _consultants():
 		if existing:
 			created.append(existing)
 			continue
-		doc = frappe.get_doc(
-			{
-				"doctype": "Employee",
-				"first_name": first,
-				"last_name": last,
-				"company": COMPANY,
-				"gender": gender,
-				"date_of_birth": "1990-01-15",
-				"date_of_joining": "2023-02-01",
-				"status": "Active",
-				"deployment_status": status,
-				"primary_skill": skill,
-				"consultant_skills": [{"skill": skill}],
-				"visa_status": visa,
-				"visa_expiry": add_days(nowdate(), 120),
-				"availability_date": add_days(nowdate(), avail_offset),
-				"bench_start_date": add_days(nowdate(), min(avail_offset, 0)),
-				"current_bill_rate": bill,
-				"current_pay_rate": pay,
-			}
-		).insert(ignore_permissions=True)
-		created.append(doc.name)
+		try:
+			doc = frappe.get_doc(
+				{
+					"doctype": "Employee",
+					"first_name": first,
+					"last_name": last,
+					"company": COMPANY,
+					"gender": gender,
+					"date_of_birth": "1990-01-15",
+					"date_of_joining": "2023-02-01",
+					"status": "Active",
+					"deployment_status": status,
+					"primary_skill": skill,
+					"consultant_skills": [{"skill": skill}],
+					"visa_status": visa,
+					"visa_expiry": add_days(nowdate(), 120),
+					"availability_date": add_days(nowdate(), avail_offset),
+					"bench_start_date": add_days(nowdate(), min(avail_offset, 0)),
+					"current_bill_rate": bill,
+					"current_pay_rate": pay,
+				}
+			).insert(ignore_permissions=True)
+			created.append(doc.name)
+		except Exception as e:
+			print(f"  consultant {first} {last} skipped: {repr(e)[:160]}")
 	return created
 
 
@@ -160,58 +174,78 @@ def _requirements():
 		if existing:
 			created.append(existing)
 			continue
-		doc = frappe.get_doc(
-			{
-				"doctype": "Client Requirement",
-				"title": title,
-				"client": client,
-				"primary_skill": skill,
-				"skills": [{"skill": skill}],
-				"status": "Open",
-				"priority": priority,
-				"location": location,
-				"work_mode": work_mode,
-				"positions": 1,
-				"bill_rate": max_bill - 8,
-				"max_bill_rate": max_bill,
-				"jd_text": f"<p>Looking for a strong {skill} consultant for {client}.</p>",
-			}
-		).insert(ignore_permissions=True)
-		created.append(doc.name)
+		try:
+			doc = frappe.get_doc(
+				{
+					"doctype": "Client Requirement",
+					"title": title,
+					"client": client,
+					"primary_skill": skill,
+					"skills": [{"skill": skill}],
+					"status": "Open",
+					"priority": priority,
+					"location": location,
+					"work_mode": work_mode,
+					"positions": 1,
+					"bill_rate": max_bill - 8,
+					"max_bill_rate": max_bill,
+					"jd_text": f"<p>Looking for a strong {skill} consultant for {client}.</p>",
+				}
+			).insert(ignore_permissions=True)
+			created.append(doc.name)
+		except Exception as e:
+			print(f"  requirement {title} skipped: {repr(e)[:160]}")
 	return created
 
 
 def _submissions(consultants, requirements):
 	if not consultants or not requirements:
 		return
-	pairs = [(consultants[0], requirements[0]), (consultants[2], requirements[1])]
+	pairs = [(consultants[0], requirements[0])]
+	if len(consultants) > 2 and len(requirements) > 1:
+		pairs.append((consultants[2], requirements[1]))
 	for consultant, requirement in pairs:
 		if frappe.db.exists("Submission", {"consultant": consultant, "requirement": requirement}):
 			continue
-		frappe.get_doc(
-			{
-				"doctype": "Submission",
-				"consultant": consultant,
-				"requirement": requirement,
-				"status": "Submitted",
-			}
-		).insert(ignore_permissions=True)
+		try:
+			frappe.get_doc(
+				{
+					"doctype": "Submission",
+					"consultant": consultant,
+					"requirement": requirement,
+					"status": "Submitted",
+				}
+			).insert(ignore_permissions=True)
+		except Exception as e:
+			print(f"  submission skipped: {repr(e)[:160]}")
 
 
 def _users():
 	for email, first, last, roles in DEMO_USERS:
 		if frappe.db.exists("User", email):
 			continue
-		user = frappe.get_doc(
-			{
-				"doctype": "User",
-				"email": email,
-				"first_name": first,
-				"last_name": last,
-				"send_welcome_email": 0,
-				"user_type": "System User",
-				"roles": [{"role": r} for r in roles],
-			}
-		)
-		user.new_password = DEMO_PASSWORD
-		user.insert(ignore_permissions=True)
+		try:
+			user = frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": email,
+					"first_name": first,
+					"last_name": last,
+					"send_welcome_email": 0,
+					"user_type": "System User",
+					"roles": [{"role": r} for r in roles],
+				}
+			)
+			user.new_password = DEMO_PASSWORD
+			user.insert(ignore_permissions=True)
+		except Exception as e:
+			print(f"  user {email} skipped: {repr(e)[:160]}")
+
+
+def _safe_insert(doctype, values, key):
+	if frappe.db.exists(doctype, key):
+		return
+	try:
+		frappe.get_doc({"doctype": doctype, **values}).insert(ignore_permissions=True)
+	except Exception as e:
+		print(f"  {doctype} {key} skipped: {repr(e)[:160]}")

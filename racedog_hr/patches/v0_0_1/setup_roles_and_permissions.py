@@ -27,7 +27,12 @@ def execute() -> None:
 	_ensure_roles_exist()
 	for role, permlevel, ptypes in EMPLOYEE_GRANTS:
 		_ensure_permission("Employee", role, permlevel, ptypes)
+	# HRMS's Employee form reads the HR Settings singleton; without read the
+	# recruiting roles get a "No permission for HR Settings" popup on every open.
+	for role in RECRUITING_ROLES:
+		_ensure_permission("HR Settings", role, 0, ("read",))
 	frappe.clear_cache(doctype="Employee")
+	frappe.clear_cache(doctype="HR Settings")
 
 
 def _ensure_roles_exist() -> None:

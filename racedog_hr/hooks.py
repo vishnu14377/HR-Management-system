@@ -70,5 +70,5 @@ doc_events = {
 # option colors, so this drives the list indicator).
 doctype_list_js = {"Employee": "public/js/employee_list.js"}
 
-# BambooHR-inspired theme applied across the whole Desk.
-app_include_css = "/assets/racedog_hr/css/bamboo_theme.css"
+# BambooHR-inspired theme applied across the whole Desk (bundled -> shared assets).
+app_include_css = "bamboo_theme.bundle.css"

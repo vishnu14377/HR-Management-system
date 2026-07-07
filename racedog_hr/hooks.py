@@ -80,6 +80,9 @@ has_permission = {
 	"Employee": "racedog_hr.permissions.employee_has_permission",
 }
 
+# Land pure consultants on their self-service portal (not the empty welcome page).
+extend_bootinfo = "racedog_hr.boot.boot_session"
+
 # Color the Employee list rows by deployment status (v15 has no native Select
 # option colors, so this drives the list indicator).
 doctype_list_js = {"Employee": "public/js/employee_list.js"}

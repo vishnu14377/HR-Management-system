@@ -13,12 +13,11 @@ from racedog_hr.patches.v0_0_1.setup_roles_and_permissions import execute as _se
 
 RECRUITING_ROLES = ("Recruiter", "Bench Sales", "Recruiting Manager", "Account Manager")
 
-# Old deployment_status values -> new (Working / On Bench / Marketing).
+# Old deployment_status values -> new. (Rolling-Off is now a real status, NOT remapped.)
 STATUS_REMAP = {
 	"Billing": "Working",
 	"Placed": "Working",
 	"Interviewing": "Marketing",
-	"Rolling-Off": "Marketing",
 	"Do-Not-Market": "On Bench",
 }
 

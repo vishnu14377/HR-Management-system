@@ -13,12 +13,13 @@ RECRUITING_ROLES = ("Recruiter", "Bench Sales", "Recruiting Manager", "Account M
 
 # (role, permlevel, [ptypes]) grants applied to the standard Employee DocType.
 EMPLOYEE_GRANTS = (
-	("Recruiter", 0, ("read", "write")),
-	("Bench Sales", 0, ("read", "write")),
+	# "report" is required to run query reports (e.g. Bench Health) on Employee.
+	("Recruiter", 0, ("read", "write", "report")),
+	("Bench Sales", 0, ("read", "write", "report")),
 	# The manager owns the consultant master — full CRUD, incl. create + delete.
-	("Recruiting Manager", 0, ("read", "write", "create", "delete")),
+	("Recruiting Manager", 0, ("read", "write", "create", "delete", "report")),
 	("Recruiting Manager", 1, ("read", "write")),
-	("Account Manager", 0, ("read",)),
+	("Account Manager", 0, ("read", "report")),
 	("Account Manager", 1, ("read",)),
 	("HR Manager", 1, ("read", "write")),
 )

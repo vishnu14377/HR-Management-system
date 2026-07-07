@@ -9,6 +9,9 @@ from frappe.utils import getdate, now_datetime
 # A submission in one of these statuses is "closed" and no longer blocks a re-submit.
 INACTIVE_STATUSES = ("Rejected", "Withdrawn")
 
+# Status changes worth pinging the consultant about (interviews book fast in staffing).
+NOTIFY_CONSULTANT_STATUSES = ("Interview Scheduled", "Offer", "Placed")
+
 
 class Submission(Document):
 	"""A consultant (our bench) or an external candidate (middle-vendor) submitted
@@ -29,8 +32,46 @@ class Submission(Document):
 	def validate(self) -> None:
 		self._block_double_submission()
 
+	def after_insert(self) -> None:
+		self._notify_consultant_submitted()
+
 	def on_update(self) -> None:
 		self._sync_requirement_on_placed()
+		self._notify_consultant_status_change()
+
+	# -- consultant-facing notifications -------------------------------------
+
+	def _consultant_user(self) -> str | None:
+		"""The login of the bench consultant on this submission, if any."""
+		if self.source != "Bench Consultant" or not self.consultant:
+			return None
+		return frappe.db.get_value("Employee", self.consultant, "user_id")
+
+	def _requirement_label(self) -> str:
+		title = frappe.db.get_value("Client Requirement", self.requirement, "title")
+		return title or self.requirement
+
+	def _notify_consultant_submitted(self) -> None:
+		user = self._consultant_user()
+		if not user:
+			return
+		# Subject carries the role title only — never the end client or any rate.
+		subject = _("You've been submitted for {0}").format(self._requirement_label())
+		_notify_consultant(user, subject, self.name)
+
+	def _notify_consultant_status_change(self) -> None:
+		if not self.has_value_changed("status") or self.status not in NOTIFY_CONSULTANT_STATUSES:
+			return
+		user = self._consultant_user()
+		if not user:
+			return
+		templates = {
+			"Interview Scheduled": _("Interview scheduled for {0}"),
+			"Offer": _("You have an offer on {0}"),
+			"Placed": _("You've been placed on {0}"),
+		}
+		subject = templates[self.status].format(self._requirement_label())
+		_notify_consultant(user, subject, self.name)
 
 	def _block_double_submission(self) -> None:
 		"""Reject a second active submission for the same bench consultant + requirement."""
@@ -109,6 +150,13 @@ class Submission(Document):
 		if not req.closed_reason:
 			req.closed_reason = _("Placed via submission {0}").format(self.name)
 		req.save(ignore_permissions=True)
+
+
+def _notify_consultant(user: str, subject: str, submission: str) -> None:
+	"""Best-effort in-app alert to a consultant about their own submission."""
+	from racedog_hr.tasks import _notify
+
+	_notify({user}, subject, "Submission", submission)
 
 
 def assign_followup(doc, method: str | None = None) -> None:

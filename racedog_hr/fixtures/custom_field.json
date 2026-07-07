@@ -140,13 +140,24 @@
  },
  {
   "doctype": "Custom Field",
+  "name": "Employee-consultant_note",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "consultant_note",
+  "fieldtype": "Small Text",
+  "label": "Consultant Note",
+  "description": "A short note from the consultant (e.g. 'available early', 'renewing EAD', newest project). Visible to recruiters; editable by the consultant.",
+  "insert_after": "visa_expiry"
+ },
+ {
+  "doctype": "Custom Field",
   "name": "Employee-racedog_docs_section",
   "dt": "Employee",
   "module": "Racedog HR",
   "fieldname": "racedog_docs_section",
   "fieldtype": "Section Break",
   "label": "Documents",
-  "insert_after": "visa_expiry"
+  "insert_after": "consultant_note"
  },
  {
   "doctype": "Custom Field",

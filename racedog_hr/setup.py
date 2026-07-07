@@ -50,10 +50,35 @@ def _apply() -> None:
 	_setup_permissions()
 	_add_indexes()
 	_migrate_status()
+	_backfill_user_links()
 	_surface_list_fields()
 	_debloat()
 	frappe.db.commit()
 	frappe.clear_cache()
+
+
+def _backfill_user_links() -> None:
+	"""Link existing consultants to their login by email (self-service key).
+
+	New records are auto-linked by employee_hooks.link_user_id on save; this
+	catches consultants created before that hook existed. Idempotent — only
+	touches rows where user_id is still empty and a matching enabled User exists.
+	"""
+	if not frappe.db.has_column("Employee", "user_id"):
+		return
+	unlinked = frappe.get_all(
+		"Employee",
+		filters={"user_id": ["in", ["", None]], "status": "Active"},
+		fields=["name", "company_email", "personal_email"],
+	)
+	for emp in unlinked:
+		for email in (emp.company_email, emp.personal_email):
+			if not email:
+				continue
+			user = frappe.db.get_value("User", {"email": email, "enabled": 1}, "name")
+			if user:
+				frappe.db.set_value("Employee", emp.name, "user_id", user)
+				break
 
 
 def _migrate_status() -> None:
@@ -106,6 +131,13 @@ def _debloat() -> None:
 	for role in RECRUITING_ROLES:
 		if frappe.db.exists("Role", role):
 			frappe.db.set_value("Role", role, "home_page", "app/bench-board")
+
+	# Land plain consultants on their self-service home (not the recruiter board).
+	# desk_access=1 so the linked consultant can actually reach the Desk page.
+	if frappe.db.exists("Role", "Employee"):
+		frappe.db.set_value(
+			"Role", "Employee", {"home_page": "app/consultant-home", "desk_access": 1}
+		)
 
 
 def _add_workspace_role(workspace: str, role: str) -> None:

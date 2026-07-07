@@ -62,8 +62,22 @@ doc_events = {
 		"on_update": "racedog_hr.racedog_hr.doctype.submission.submission.assign_followup",
 	},
 	"Employee": {
-		"validate": "racedog_hr.employee_hooks.apply_status_rules",
+		"validate": [
+			"racedog_hr.employee_hooks.apply_status_rules",
+			"racedog_hr.employee_hooks.link_user_id",
+		],
 	},
+}
+
+# ---------------------------------------------------------------------------
+# Row-level access — a logged-in consultant sees only their OWN Employee record
+# (self-service firewall), while recruiters/managers keep the roster-wide view.
+# ---------------------------------------------------------------------------
+permission_query_conditions = {
+	"Employee": "racedog_hr.permissions.employee_query_conditions",
+}
+has_permission = {
+	"Employee": "racedog_hr.permissions.employee_has_permission",
 }
 
 # Color the Employee list rows by deployment status (v15 has no native Select

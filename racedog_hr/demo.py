@@ -72,6 +72,11 @@ DEMO_USERS = [
 	("manager@racedog.test", "Marco", "Manager", ["Recruiting Manager"]),
 ]
 
+# A consultant login so the self-service Consultant Home is explorable. Linked to
+# the first seeded consultant (Priya Nair) — she lands on /app/consultant-home and
+# sees only her own record (rate/margin never exposed).
+DEMO_CONSULTANT = ("priya@racedog.test", "Priya", "Nair", "Priya Nair")
+
 
 def seed():
 	frappe.set_user("Administrator")
@@ -85,12 +90,14 @@ def seed():
 	requirements = _run("requirements", _requirements) or []
 	_run("submissions", lambda: _submissions(consultants, requirements))
 	_run("users", _users)
+	_run("consultant_login", _consultant_login)
 	summary = {
 		"company": frappe.db.count("Company"),
 		"consultants": frappe.db.count("Employee", {"status": "Active"}),
 		"requirements": frappe.db.count("Client Requirement"),
 		"submissions": frappe.db.count("Submission"),
 		"users": [u[0] for u in DEMO_USERS if frappe.db.exists("User", u[0])],
+		"consultant_login": DEMO_CONSULTANT[0] if frappe.db.exists("User", DEMO_CONSULTANT[0]) else None,
 		"password": DEMO_PASSWORD,
 	}
 	print("SEED DONE:", summary)
@@ -312,6 +319,35 @@ def _users():
 			print(f"  user {email} skipped: {repr(e)[:160]}")
 
 
+def _consultant_login():
+	"""Create a consultant login (Employee role) and link it to Priya Nair.
+
+	Proves the self-service surface end to end: this user lands on
+	/app/consultant-home, sees only her own record, and can never read a rate.
+	"""
+	email, first, last, emp_name = DEMO_CONSULTANT
+	if not frappe.db.exists("User", email):
+		try:
+			user = frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": email,
+					"first_name": first,
+					"last_name": last,
+					"send_welcome_email": 0,
+					"user_type": "System User",
+					"roles": [{"role": "Employee"}],
+				}
+			)
+			user.new_password = DEMO_PASSWORD
+			user.insert(ignore_permissions=True)
+		except Exception as e:
+			print(f"  consultant user {email} skipped: {repr(e)[:160]}")
+	emp = frappe.db.get_value("Employee", {"employee_name": emp_name}, "name")
+	if emp and frappe.db.exists("User", email):
+		frappe.db.set_value("Employee", emp, "user_id", email)
+
+
 def _safe_insert(doctype, values, key):
 	if frappe.db.exists(doctype, key):
 		return
@@ -371,6 +407,26 @@ def verify():
 
 	frappe.set_user("manager@racedog.test")
 	report["manager_getlist_rate"] = _peek_rate()
+
+	# Consultant self-service firewall: sees only self, no rate, board is blocked.
+	if frappe.db.exists("User", DEMO_CONSULTANT[0]):
+		frappe.set_user(DEMO_CONSULTANT[0])
+		from racedog_hr.api import get_my_profile, get_bench as _get_bench
+
+		try:
+			profile = get_my_profile()["data"]
+			report["consultant_profile_name"] = profile.get("employee_name")
+			report["consultant_profile_leaks_rate"] = any("rate" in k or k == "margin" for k in profile)
+		except Exception as e:
+			report["consultant_profile"] = f"ERROR({type(e).__name__})"
+		# get_list applies permission_query_conditions (db.count would NOT) -> expect 1.
+		report["consultant_employees_visible"] = len(frappe.get_list("Employee", limit=0))
+		report["consultant_getlist_rate"] = _peek_rate()
+		try:
+			_get_bench()
+			report["consultant_board_blocked"] = False
+		except frappe.exceptions.PermissionError:
+			report["consultant_board_blocked"] = True
 
 	frappe.set_user("Administrator")
 	print("VERIFY:", report)

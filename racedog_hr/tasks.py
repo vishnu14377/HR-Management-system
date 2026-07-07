@@ -25,7 +25,7 @@ def check_visa_expiry() -> None:
 	employees = frappe.get_all(
 		"Employee",
 		filters={"status": "Active", "visa_expiry": ["is", "set"]},
-		fields=["name", "employee_name", "visa_expiry", "marketing_owner"],
+		fields=["name", "employee_name", "visa_expiry", "marketing_owner", "user_id"],
 	)
 	for emp in employees:
 		days_left = date_diff(emp.visa_expiry, today)
@@ -38,6 +38,9 @@ def check_visa_expiry() -> None:
 		recipients = set(hr_managers)
 		if emp.marketing_owner:
 			recipients.add(emp.marketing_owner)
+		# The consultant is the one who renews it — tell them directly too.
+		if emp.user_id:
+			recipients.add(emp.user_id)
 		_notify(recipients, subject, "Employee", emp.name)
 
 

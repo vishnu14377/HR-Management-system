@@ -27,6 +27,9 @@ const HOTLIST_CHIPS = [
 	{ label: "Green", value: "Green" },
 ];
 
+// Advancing to one of these stages prompts for an optional feedback note (audit trail).
+const FEEDBACK_STAGES = ["Interview Done", "Offer", "Placed", "Rejected"];
+
 class BenchBoard {
 	constructor(page) {
 		this.page = page;
@@ -62,11 +65,19 @@ class BenchBoard {
 					</div>
 					<div class="rdg-reqs"></div>
 				</div>
+				<div>
+					<div class="rdg-col-head">
+						<span class="rdg-col-title">${__("My Pipeline")}</span>
+						<span class="rdg-col-count rdg-pipe-count"></span>
+					</div>
+					<div class="rdg-pipe"></div>
+				</div>
 			</div>
 		`);
 
 		this.$cards = this.$root.find(".rdg-cards");
 		this.$reqs = this.$root.find(".rdg-reqs");
+		this.$pipe = this.$root.find(".rdg-pipe");
 
 		const $status = this.$root.find(".rdg-status-chips");
 		STATUS_CHIPS.forEach((chip, i) => {
@@ -128,6 +139,15 @@ class BenchBoard {
 	reload() {
 		this.load_bench();
 		this.load_requirements();
+		this.load_pipeline();
+	}
+
+	load_pipeline() {
+		frappe.call({
+			method: "racedog_hr.api.get_my_pipeline",
+			callback: (r) => this.render_pipeline((r.message && r.message.data) || []),
+			error: () => this.render_error(this.$pipe),
+		});
 	}
 
 	load_bench() {
@@ -272,6 +292,89 @@ class BenchBoard {
 		});
 	}
 
+	render_pipeline(rows) {
+		this.$root.find(".rdg-pipe-count").text(`${rows.length} ${__("active")}`);
+		if (!rows.length) {
+			this.$pipe.html(
+				`<div class="rdg-state"><h4>${__("No active submissions")}</h4><p>${__(
+					"Drag a consultant onto a requirement to start one."
+				)}</p></div>`
+			);
+			return;
+		}
+		this.$pipe.empty();
+		const esc = frappe.utils.escape_html;
+		const stages = ["Submitted", "Under Review", "Interview Scheduled", "Interview Done", "Offer", "Placed", "Rejected", "Withdrawn"];
+		rows.forEach((s) => {
+			const opts = stages
+				.map((st) => `<option value="${st}"${st === s.status ? " selected" : ""}>${__(st)}</option>`)
+				.join("");
+			const $p = $(`
+				<div class="rdg-pipecard" data-tone="${esc(s.status)}">
+					<div class="rdg-pipe-cand">${esc(s.candidate || s.name)}</div>
+					<div class="rdg-pipe-req">${esc(s.requirement_title || s.requirement)}</div>
+					<select class="rdg-pipe-stage">${opts}</select>
+				</div>
+			`);
+			$p.find(".rdg-pipe-stage").on("change", (e) => {
+				this.update_stage(s.name, e.target.value, s.candidate);
+			});
+			this.$pipe.append($p);
+		});
+	}
+
+	update_stage(submission, status, candidate) {
+		// Decision stages carry an audit trail — prompt for an optional note.
+		if (FEEDBACK_STAGES.includes(status)) {
+			const d = new frappe.ui.Dialog({
+				title: __("{0} → {1}", [candidate || submission, __(status)]),
+				fields: [
+					{
+						fieldname: "feedback",
+						fieldtype: "Small Text",
+						label: __("Feedback / notes (optional)"),
+					},
+				],
+				primary_action_label: __("Save"),
+				primary_action: (v) => {
+					d.hide();
+					this._commit_stage(submission, status, candidate, v.feedback || null);
+				},
+				// Cancel: leave the record unchanged and resync the dropdown.
+				secondary_action_label: __("Cancel"),
+				secondary_action: () => {
+					d.hide();
+					this.load_pipeline();
+				},
+			});
+			d.show();
+			return;
+		}
+		this._commit_stage(submission, status, candidate, null);
+	}
+
+	_commit_stage(submission, status, candidate, feedback) {
+		frappe.call({
+			method: "racedog_hr.api.update_submission_status",
+			args: { submission, status, feedback },
+			freeze: true,
+			freeze_message: __("Updating…"),
+			callback: (r) => {
+				if (r.message && r.message.data) {
+					frappe.show_alert(
+						{ message: __("{0} → {1}", [candidate || submission, __(status)]), indicator: "green" },
+						4
+					);
+					this.load_pipeline();
+				}
+			},
+			error: () => {
+				frappe.show_alert({ message: __("Could not update"), indicator: "red" }, 6);
+				this.load_pipeline();
+			},
+		});
+	}
+
 	open_submit_dialog(consultant) {
 		if (!this.requirements.length) {
 			frappe.msgprint(__("There are no open requirements to submit to yet."));
@@ -309,6 +412,7 @@ class BenchBoard {
 						{ message: __("Submitted {0}", [consultantName || consultant]), indicator: "green" },
 						5
 					);
+					this.load_pipeline();
 				}
 			},
 			error: () => {

@@ -18,6 +18,7 @@ theme**, and seeded with demo data. Screenshots are on your Desktop in
 |---|---|---|---|
 | `recruiter@racedog.test` | `racedog123` | **no** (firewall) | Bench Board |
 | `manager@racedog.test` | `racedog123` | **yes** | Bench Board |
+| `priya@racedog.test` | `racedog123` | **no** (own record only) | My Home (consultant portal) |
 | `Administrator` | `admin` | yes (admin) | full desk |
 
 > If a page ever flickers or looks stale, hard-refresh (`Cmd+Shift+R`) or log out/in —

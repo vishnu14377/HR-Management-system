@@ -28,3 +28,23 @@ def apply_status_rules(doc, method: str | None = None) -> None:
 
 	# Margin is a manager-only computed number (server bypasses permlevel).
 	doc.margin = flt(doc.get("current_bill_rate")) - flt(doc.get("current_pay_rate"))
+
+
+def link_user_id(doc, method: str | None = None) -> None:
+	"""Auto-link a consultant's Employee record to their login (self-service key).
+
+	Every self-scoped feature resolves ``session.user -> Employee`` via ``user_id``,
+	so an unlinked record is invisible to its own consultant. If ``user_id`` is
+	empty, match an existing (enabled) User by company/personal email and link it.
+	Never creates a User — only connects to one that already exists.
+	"""
+	if doc.get("user_id"):
+		return
+
+	for email in (doc.get("company_email"), doc.get("personal_email"), doc.get("prefered_email")):
+		if not email:
+			continue
+		user = frappe.db.get_value("User", {"email": email, "enabled": 1}, "name")
+		if user:
+			doc.user_id = user
+			return

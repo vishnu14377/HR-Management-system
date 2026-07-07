@@ -71,6 +71,95 @@ REQUIREMENT_FIELDS = (
 	"posted_on",
 )
 
+# ---------------------------------------------------------------------------
+# Self-service (consultant) surface — everything below resolves the caller to
+# their OWN Employee via user_id and reads through hardcoded non-rate allowlists,
+# so a consultant can never see rates/margin (theirs or anyone else's).
+# ---------------------------------------------------------------------------
+
+# What a consultant may see about themselves. Deliberately NO rate/margin field.
+MY_PROFILE_FIELDS = (
+	"name",
+	"employee_name",
+	"designation",
+	"department",
+	"image",
+	"deployment_status",
+	"hotlist",
+	"current_client",
+	"primary_skill",
+	"visa_status",
+	"visa_expiry",
+	"availability_date",
+	"bench_start_date",
+	"marketing_owner",
+	"company_email",
+	"personal_email",
+	"cell_number",
+	"consultant_note",
+)
+
+# The ONLY Submission fields any self/pipeline read returns — NEVER the
+# permlevel-1 submitted_bill_rate.
+SUBMISSION_SAFE_FIELDS = (
+	"name",
+	"requirement",
+	"client",
+	"status",
+	"source",
+	"submitted_by",
+	"submitted_on",
+	"interview_datetime",
+	"feedback",
+)
+
+# Before these stages the end-client name is hidden from the consultant
+# (account protection — recruiters own the client relationship until interview).
+PRE_INTERVIEW_STATUSES = frozenset({"Submitted", "Under Review"})
+
+# The ONLY Employee fields a consultant may change about themselves.
+SELF_UPDATABLE_FIELDS = frozenset(
+	{
+		"availability_date",
+		"visa_status",
+		"visa_expiry",
+		"personal_email",
+		"cell_number",
+		"consultant_note",
+	}
+)
+
+# Document types a consultant may self-upload (matches Consultant Document Select).
+ALLOWED_DOCUMENT_TYPES = frozenset(
+	{
+		"Resume",
+		"Visa",
+		"Work Authorization (EAD/I-797)",
+		"Driver License",
+		"Passport",
+		"Offer Letter",
+		"Other",
+	}
+)
+ALLOWED_DOC_EXTENSIONS = frozenset({"pdf", "doc", "docx", "png", "jpg", "jpeg"})
+MAX_DOC_BYTES = 10 * 1024 * 1024  # 10 MB
+
+# Statuses a recruiter may set from the pipeline rail.
+SUBMISSION_STATUSES = frozenset(
+	{
+		"Submitted",
+		"Under Review",
+		"Interview Scheduled",
+		"Interview Done",
+		"Offer",
+		"Placed",
+		"Rejected",
+		"Withdrawn",
+	}
+)
+# Pipeline rail hides already-closed submissions.
+PIPELINE_CLOSED_STATUSES = ("Rejected", "Withdrawn", "Placed")
+
 
 @frappe.whitelist()
 def get_bench(
@@ -218,6 +307,283 @@ def create_submission(consultant: str, requirement: str, vendor: str | None = No
 	)
 	doc.insert()
 	return {"data": {"name": doc.name}}
+
+
+# ---------------------------------------------------------------------------
+# Consultant self-service endpoints
+# ---------------------------------------------------------------------------
+
+
+@frappe.whitelist()
+def get_my_profile() -> dict:
+	"""Return the calling consultant's own profile (no rate/margin fields ever)."""
+	emp = _resolve_my_employee()
+	rows = frappe.get_all("Employee", filters={"name": emp}, fields=list(MY_PROFILE_FIELDS))
+	if not rows:
+		frappe.throw(_("Profile not found."), frappe.exceptions.DoesNotExistError)
+	profile = rows[0]
+
+	# Skills (child table) — names only.
+	profile["skills"] = frappe.get_all(
+		"RaceDog Skill Item",
+		filters={"parent": emp, "parenttype": "Employee"},
+		pluck="skill",
+	)
+	# The consultant's own documents (they may re-download their own files).
+	profile["documents"] = frappe.get_all(
+		"Consultant Document",
+		filters={"parent": emp, "parenttype": "Employee"},
+		fields=["document_type", "document", "expiry_date", "uploaded_on"],
+		order_by="uploaded_on desc",
+	)
+	# Who markets me + how to reach them (kills the "who's my recruiter?" question).
+	profile["marketing_owner_contact"] = _user_contact(profile.get("marketing_owner"))
+	return {"data": profile}
+
+
+@frappe.whitelist()
+def get_my_submissions() -> dict:
+	"""Return the calling consultant's own submissions, rate-excluded.
+
+	Client name is masked until the interview stage (account protection: the
+	recruiter owns the client relationship until an interview is booked).
+	"""
+	emp = _resolve_my_employee()
+	rows = frappe.get_all(
+		"Submission",
+		filters={"source": "Bench Consultant", "consultant": emp},
+		fields=list(SUBMISSION_SAFE_FIELDS),
+		order_by="submitted_on desc",
+		page_length=200,
+	)
+	titles = _requirement_titles([r.get("requirement") for r in rows])
+	for r in rows:
+		r["requirement_title"] = titles.get(r.get("requirement"), r.get("requirement"))
+		if r.get("status") in PRE_INTERVIEW_STATUSES:
+			r["client"] = None  # hide the end client until interview stage
+	return {"data": rows, "meta": {"returned": len(rows)}}
+
+
+@frappe.whitelist(methods=["POST"])
+def update_my_profile(updates: str | dict) -> dict:
+	"""Let a consultant maintain their own availability / work-auth / skills / note.
+
+	Strictly field-allowlisted (no status, hotlist, client, rate, or owner writes).
+	Saves with ``ignore_permissions`` so apply_status_rules still runs.
+	"""
+	emp = _resolve_my_employee()
+
+	payload = frappe.parse_json(updates) if isinstance(updates, str) else (updates or {})
+	if not isinstance(payload, dict) or not payload:
+		frappe.throw(_("No updates provided."), frappe.exceptions.ValidationError)
+
+	allowed = SELF_UPDATABLE_FIELDS | {"consultant_skills"}
+	unknown = set(payload) - allowed
+	if unknown:
+		frappe.throw(
+			_("You cannot change these fields: {0}").format(", ".join(sorted(unknown))),
+			frappe.exceptions.PermissionError,
+		)
+
+	doc = frappe.get_doc("Employee", emp)
+	skills = payload.pop("consultant_skills", None)
+	for field, value in payload.items():
+		doc.set(field, value)
+
+	if skills is not None:
+		if not isinstance(skills, list):
+			frappe.throw(_("Skills must be a list."), frappe.exceptions.ValidationError)
+		doc.set("consultant_skills", [])
+		for skill in skills:
+			if frappe.db.exists("Skill", skill):
+				doc.append("consultant_skills", {"skill": skill})
+
+	doc.save(ignore_permissions=True)
+	return {
+		"data": {
+			"availability_date": doc.availability_date,
+			"visa_status": doc.visa_status,
+			"visa_expiry": doc.visa_expiry,
+			"cell_number": doc.cell_number,
+			"personal_email": doc.personal_email,
+			"consultant_note": doc.get("consultant_note"),
+		}
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def upload_my_document(
+	document_type: str,
+	file_name: str,
+	content: str,
+	expiry_date: str | None = None,
+	notes: str | None = None,
+) -> dict:
+	"""Attach a private document (resume / work-auth) to the caller's own record.
+
+	``content`` is base64. The File is created private + attached to the Employee,
+	then a Consultant Document row is appended and the Employee saved with
+	``ignore_permissions`` (the consultant never gets blanket Employee write).
+	"""
+	emp = _resolve_my_employee()
+
+	if document_type not in ALLOWED_DOCUMENT_TYPES:
+		frappe.throw(_("Unsupported document type: {0}").format(document_type), frappe.exceptions.ValidationError)
+
+	ext = (file_name.rsplit(".", 1)[-1] if "." in file_name else "").lower()
+	if ext not in ALLOWED_DOC_EXTENSIONS:
+		frappe.throw(
+			_("Only these file types are allowed: {0}").format(", ".join(sorted(ALLOWED_DOC_EXTENSIONS))),
+			frappe.exceptions.ValidationError,
+		)
+
+	import base64
+	import binascii
+
+	raw = content.split(",", 1)[-1] if content.startswith("data:") else content
+	try:
+		decoded = base64.b64decode(raw, validate=True)
+	except (binascii.Error, ValueError):
+		frappe.throw(_("The uploaded file could not be read."), frappe.exceptions.ValidationError)
+	if not decoded:
+		frappe.throw(_("The uploaded file is empty."), frappe.exceptions.ValidationError)
+	if len(decoded) > MAX_DOC_BYTES:
+		frappe.throw(_("File is too large (max 10 MB)."), frappe.exceptions.ValidationError)
+
+	file_doc = frappe.get_doc(
+		{
+			"doctype": "File",
+			"file_name": f"{emp}-{document_type}-{file_name}",
+			"attached_to_doctype": "Employee",
+			"attached_to_name": emp,
+			"is_private": 1,
+			"content": raw,
+			"decode": True,
+		}
+	).insert(ignore_permissions=True)
+
+	doc = frappe.get_doc("Employee", emp)
+	doc.append(
+		"documents",
+		{
+			"document_type": document_type,
+			"document": file_doc.file_url,
+			"expiry_date": expiry_date or None,
+			"uploaded_on": frappe.utils.nowdate(),
+			"notes": notes or None,
+		},
+	)
+	doc.save(ignore_permissions=True)
+	return {"data": {"file_url": file_doc.file_url, "document_type": document_type}}
+
+
+# ---------------------------------------------------------------------------
+# Recruiter pipeline rail
+# ---------------------------------------------------------------------------
+
+
+@frappe.whitelist()
+def get_my_pipeline() -> dict:
+	"""Return the caller's own active submissions (rate-excluded) for the board rail."""
+	_require_recruiting_role()
+	rows = frappe.get_list(
+		"Submission",
+		filters={
+			"submitted_by": frappe.session.user,
+			"status": ["not in", PIPELINE_CLOSED_STATUSES],
+		},
+		fields=list(SUBMISSION_SAFE_FIELDS),
+		order_by="modified desc",
+		page_length=100,
+	)
+	titles = _requirement_titles([r.get("requirement") for r in rows])
+	names = _consultant_names([r.get("name") for r in rows])
+	for r in rows:
+		r["requirement_title"] = titles.get(r.get("requirement"), r.get("requirement"))
+		r["candidate"] = names.get(r.get("name"))
+	return {"data": rows, "meta": {"returned": len(rows)}}
+
+
+@frappe.whitelist(methods=["POST"])
+def update_submission_status(submission: str, status: str, feedback: str | None = None) -> dict:
+	"""Advance a submission's stage from the pipeline rail. Role-gated, allowlisted.
+
+	Only ``status`` + ``feedback`` (both permlevel 0) can change — never the
+	permlevel-1 bill rate. Saves through the controller so dedupe / placed-sync /
+	notifications still fire.
+	"""
+	_require_recruiting_role()
+
+	if status not in SUBMISSION_STATUSES:
+		frappe.throw(_("Invalid status: {0}").format(status), frappe.exceptions.ValidationError)
+	if not frappe.db.exists("Submission", submission):
+		frappe.throw(_("Submission {0} not found.").format(submission), frappe.exceptions.DoesNotExistError)
+
+	doc = frappe.get_doc("Submission", submission)
+	doc.status = status
+	if feedback is not None:
+		doc.feedback = feedback
+	doc.save(ignore_permissions=True)
+	return {"data": {"name": doc.name, "status": doc.status, "feedback": doc.feedback}}
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+
+def _resolve_my_employee() -> str:
+	"""Resolve the logged-in user to their own Employee, or throw a friendly error."""
+	emp = frappe.db.get_value(
+		"Employee", {"user_id": frappe.session.user, "status": "Active"}, "name"
+	)
+	if not emp:
+		frappe.throw(
+			_(
+				"Your login isn't linked to a consultant profile yet. "
+				"Ask your recruiting manager to connect your account."
+			),
+			frappe.exceptions.PermissionError,
+		)
+	return emp
+
+
+def _requirement_titles(requirements) -> dict:
+	"""Map requirement name -> title for a batch of submission rows."""
+	names = {r for r in requirements if r}
+	if not names:
+		return {}
+	rows = frappe.get_all(
+		"Client Requirement", filters={"name": ["in", list(names)]}, fields=["name", "title"]
+	)
+	return {r["name"]: r["title"] for r in rows}
+
+
+def _consultant_names(submissions) -> dict:
+	"""Map submission name -> a display candidate name (bench consultant or external)."""
+	names = {s for s in submissions if s}
+	if not names:
+		return {}
+	rows = frappe.get_all(
+		"Submission",
+		filters={"name": ["in", list(names)]},
+		fields=["name", "consultant", "external_name", "source"],
+	)
+	result: dict = {}
+	for r in rows:
+		if r["source"] == "Bench Consultant" and r["consultant"]:
+			result[r["name"]] = frappe.db.get_value("Employee", r["consultant"], "employee_name")
+		else:
+			result[r["name"]] = r["external_name"]
+	return result
+
+
+def _user_contact(user: str | None) -> dict | None:
+	"""Public contact card for a marketing owner (name + email + phone)."""
+	if not user or not frappe.db.exists("User", user):
+		return None
+	row = frappe.db.get_value("User", user, ["full_name", "email", "mobile_no"], as_dict=True)
+	return {"name": row.full_name, "email": row.email, "phone": row.mobile_no} if row else None
 
 
 def _require_recruiting_role() -> None:

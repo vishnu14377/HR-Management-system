@@ -1,0 +1,117 @@
+[
+ {
+  "doctype": "Workspace",
+  "name": "Bench & Requirements",
+  "label": "Bench & Requirements",
+  "title": "Bench & Requirements",
+  "module": "Racedog HR",
+  "public": 1,
+  "is_hidden": 0,
+  "icon": "users",
+  "indicator_color": "green",
+  "sequence_id": 25.0,
+  "content": "[{\"id\": \"hdr\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Bench &amp; Requirements</b></span>\", \"col\": 12}}, {\"id\": \"nc1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Consultants On Bench\", \"col\": 4}}, {\"id\": \"nc2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Open Requirements\", \"col\": 4}}, {\"id\": \"nc3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Submissions\", \"col\": 4}}, {\"id\": \"shd\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Shortcuts</b></span>\", \"col\": 12}}, {\"id\": \"s0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bench Board\", \"col\": 3}}, {\"id\": \"s1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Open Requirements\", \"col\": 3}}, {\"id\": \"s2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Bench List\", \"col\": 3}}, {\"id\": \"s3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"My Submissions\", \"col\": 3}}, {\"id\": \"chd\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Data</b></span>\", \"col\": 12}}, {\"id\": \"c1\", \"type\": \"card\", \"data\": {\"card_name\": \"Recruiting\", \"col\": 6}}, {\"id\": \"c2\", \"type\": \"card\", \"data\": {\"card_name\": \"Masters\", \"col\": 6}}]",
+  "number_cards": [
+   {
+    "label": "Consultants On Bench",
+    "number_card_name": "Consultants On Bench"
+   },
+   {
+    "label": "Open Requirements",
+    "number_card_name": "Open Requirements"
+   },
+   {
+    "label": "Active Submissions",
+    "number_card_name": "Active Submissions"
+   }
+  ],
+  "charts": [],
+  "shortcuts": [
+   {
+    "label": "Bench Board",
+    "type": "Page",
+    "link_to": "bench-board",
+    "color": "Grey"
+   },
+   {
+    "label": "Open Requirements",
+    "type": "DocType",
+    "link_to": "Client Requirement",
+    "color": "Blue",
+    "stats_filter": "{\"status\": \"Open\"}"
+   },
+   {
+    "label": "Bench List",
+    "type": "DocType",
+    "link_to": "Employee",
+    "color": "Green",
+    "stats_filter": "{\"deployment_status\": [\"in\", [\"On Bench\", \"Marketing\"]]}"
+   },
+   {
+    "label": "My Submissions",
+    "type": "DocType",
+    "link_to": "Submission",
+    "color": "Orange"
+   }
+  ],
+  "links": [
+   {
+    "type": "Card Break",
+    "label": "Recruiting",
+    "hidden": 0,
+    "onboard": 0
+   },
+   {
+    "type": "Link",
+    "label": "Client Requirement",
+    "link_to": "Client Requirement",
+    "link_type": "DocType",
+    "onboard": 1
+   },
+   {
+    "type": "Link",
+    "label": "Submission",
+    "link_to": "Submission",
+    "link_type": "DocType",
+    "onboard": 1
+   },
+   {
+    "type": "Link",
+    "label": "Employee (Consultants)",
+    "link_to": "Employee",
+    "link_type": "DocType",
+    "onboard": 1
+   },
+   {
+    "type": "Card Break",
+    "label": "Masters",
+    "hidden": 0,
+    "onboard": 0
+   },
+   {
+    "type": "Link",
+    "label": "Client",
+    "link_to": "Client",
+    "link_type": "DocType"
+   },
+   {
+    "type": "Link",
+    "label": "Vendor",
+    "link_to": "Vendor",
+    "link_type": "DocType"
+   },
+   {
+    "type": "Link",
+    "label": "Skill",
+    "link_to": "Skill",
+    "link_type": "DocType"
+   },
+   {
+    "type": "Link",
+    "label": "Work Authorization",
+    "link_to": "Work Authorization",
+    "link_type": "DocType"
+   }
+  ]
+ }
+]

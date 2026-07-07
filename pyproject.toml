@@ -1,0 +1,31 @@
+[project]
+name = "racedog_hr"
+authors = [
+    { name = "RaceDog Technologies", email = "hr@racedogtechnologies.com" },
+]
+description = "Recruiting-coordination layer on Frappe HRMS: bench list, client requirements, and submission tracking for IT staffing/consulting."
+requires-python = ">=3.10"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = [
+    # Frappe and HRMS are provided by the bench, not pip-installed here.
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0,<16.0.0"
+hrms = ">=15.0.0,<16.0.0"
+
+[tool.flit.module]
+name = "racedog_hr"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "tab"

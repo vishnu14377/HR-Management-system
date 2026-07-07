@@ -1,0 +1,202 @@
+/* Bench Board — scoped under .rdg-bench so nothing leaks into Desk.
+   Shape scale (locked): cards 14px, controls 10px, chips/pills full-round.
+   Accent (locked): ink (near-black). Status pills carry the only other colors,
+   and only because they encode real state. No pure #000/#fff, no glow, no em-dash. */
+
+.rdg-bench {
+	--rdg-bg: #f5f6f8;
+	--rdg-surface: #ffffff;
+	--rdg-surface-2: #fbfbfc;
+	--rdg-border: #e6e8ec;
+	--rdg-text: #16181d;
+	--rdg-muted: #6a7280;
+	--rdg-faint: #9aa1ab;
+	--rdg-ink: #16181d;
+	--rdg-ink-hover: #2a2d34;
+	--rdg-shadow: 12px 16px 40px -24px rgba(20, 22, 26, 0.35);
+	--rdg-radius-card: 14px;
+	--rdg-radius-ctl: 10px;
+
+	color: var(--rdg-text);
+	background: var(--rdg-bg);
+	min-height: 70vh;
+	padding: 4px 2px 40px;
+	font-feature-settings: "tnum" 1, "cv05" 1;
+}
+
+[data-theme="dark"] .rdg-bench {
+	--rdg-bg: #16181c;
+	--rdg-surface: #1e2127;
+	--rdg-surface-2: #22262d;
+	--rdg-border: #2c313a;
+	--rdg-text: #e7e9ee;
+	--rdg-muted: #9aa1ac;
+	--rdg-faint: #6f7681;
+	--rdg-ink: #e7e9ee;
+	--rdg-ink-hover: #ffffff;
+	--rdg-shadow: 12px 16px 44px -26px rgba(0, 0, 0, 0.7);
+}
+
+/* ---------- toolbar ---------- */
+.rdg-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 18px;
+}
+.rdg-search {
+	flex: 1 1 260px;
+	min-width: 220px;
+	height: 40px;
+	padding: 0 14px;
+	border: 1px solid var(--rdg-border);
+	border-radius: var(--rdg-radius-ctl);
+	background: var(--rdg-surface);
+	color: var(--rdg-text);
+	font-size: 13.5px;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.rdg-search::placeholder { color: var(--rdg-faint); }
+.rdg-search:focus {
+	outline: none;
+	border-color: var(--rdg-ink);
+	box-shadow: 0 0 0 3px rgba(22, 24, 29, 0.08);
+}
+.rdg-select {
+	height: 40px;
+	padding: 0 32px 0 12px;
+	border: 1px solid var(--rdg-border);
+	border-radius: var(--rdg-radius-ctl);
+	background: var(--rdg-surface);
+	color: var(--rdg-text);
+	font-size: 13px;
+	cursor: pointer;
+}
+
+/* ---------- status filter chips ---------- */
+.rdg-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 18px; }
+.rdg-chip {
+	padding: 6px 13px;
+	border-radius: 999px;
+	border: 1px solid var(--rdg-border);
+	background: var(--rdg-surface);
+	color: var(--rdg-muted);
+	font-size: 12.5px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: transform 0.12s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.rdg-chip:hover { border-color: var(--rdg-ink); color: var(--rdg-text); }
+.rdg-chip:active { transform: translateY(1px); }
+.rdg-chip.is-active {
+	background: var(--rdg-ink);
+	border-color: var(--rdg-ink);
+	color: #fbfbfc;
+}
+[data-theme="dark"] .rdg-chip.is-active { color: #16181c; }
+
+/* ---------- layout ---------- */
+.rdg-grid { display: grid; grid-template-columns: 1fr 340px; gap: 22px; align-items: start; }
+@media (max-width: 1100px) { .rdg-grid { grid-template-columns: 1fr; } }
+
+.rdg-col-head {
+	display: flex; align-items: baseline; justify-content: space-between;
+	margin: 0 2px 12px;
+}
+.rdg-col-title { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+.rdg-col-count { font-size: 12.5px; color: var(--rdg-muted); font-variant-numeric: tabular-nums; }
+
+/* ---------- consultant cards ---------- */
+.rdg-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.rdg-card {
+	position: relative;
+	background: var(--rdg-surface);
+	border: 1px solid var(--rdg-border);
+	border-radius: var(--rdg-radius-card);
+	padding: 16px 16px 14px;
+	transition: transform 0.16s ease, box-shadow 0.2s ease, border-color 0.16s ease;
+	cursor: grab;
+}
+.rdg-card:hover { transform: translateY(-2px); box-shadow: var(--rdg-shadow); border-color: transparent; }
+.rdg-card:active { cursor: grabbing; }
+.rdg-card.is-dragging { opacity: 0.5; }
+
+.rdg-card-top { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; }
+.rdg-avatar {
+	width: 38px; height: 38px; flex: 0 0 38px;
+	border-radius: 10px;
+	display: grid; place-items: center;
+	background: var(--rdg-surface-2);
+	border: 1px solid var(--rdg-border);
+	font-size: 13px; font-weight: 650; color: var(--rdg-muted);
+	background-size: cover; background-position: center;
+}
+.rdg-name { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; }
+.rdg-role { font-size: 12px; color: var(--rdg-muted); margin-top: 2px; }
+
+.rdg-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.rdg-tag {
+	font-size: 11.5px; padding: 3px 9px; border-radius: 999px;
+	background: var(--rdg-surface-2); border: 1px solid var(--rdg-border); color: var(--rdg-muted);
+}
+.rdg-tag b { color: var(--rdg-text); font-weight: 600; }
+
+.rdg-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rdg-avail { font-size: 11.5px; color: var(--rdg-faint); font-variant-numeric: tabular-nums; }
+
+/* ---------- status pills (semantic — the only non-ink color) ---------- */
+.rdg-pill { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.rdg-pill[data-s="On Bench"]     { background: #dcfce7; color: #14663a; }
+.rdg-pill[data-s="Marketing"]    { background: #fef3c7; color: #92400e; }
+.rdg-pill[data-s="Interviewing"] { background: #dbeafe; color: #1e40af; }
+.rdg-pill[data-s="Placed"]       { background: #e8eaed; color: #3a3f47; }
+.rdg-pill[data-s="Rolling-Off"]  { background: #ffedd5; color: #9a3412; }
+.rdg-pill[data-s="Billing"]      { background: #ccfbf1; color: #115e59; }
+.rdg-pill[data-s="Do-Not-Market"]{ background: #ffe4e6; color: #9f1239; }
+[data-theme="dark"] .rdg-pill { filter: saturate(0.85) brightness(0.92); }
+
+/* ---------- requirements rail ---------- */
+.rdg-req {
+	background: var(--rdg-surface); border: 1px solid var(--rdg-border);
+	border-radius: 12px; padding: 13px 14px; margin-bottom: 10px;
+	transition: border-color 0.15s ease, box-shadow 0.2s ease, background 0.15s ease;
+}
+.rdg-req.is-drop { border-color: var(--rdg-ink); border-style: dashed; background: var(--rdg-surface-2); }
+.rdg-req-title { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; }
+.rdg-req-sub { font-size: 12px; color: var(--rdg-muted); margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; }
+.rdg-prio { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.rdg-prio[data-p="Urgent"] { color: #b91c1c; }
+.rdg-prio[data-p="High"]   { color: #c2410c; }
+.rdg-prio[data-p="Medium"] { color: var(--rdg-muted); }
+.rdg-prio[data-p="Low"]    { color: var(--rdg-faint); }
+
+/* ---------- buttons ---------- */
+.rdg-btn {
+	height: 30px; padding: 0 13px; border-radius: var(--rdg-radius-ctl);
+	border: 1px solid var(--rdg-ink); background: var(--rdg-ink); color: #fbfbfc;
+	font-size: 12.5px; font-weight: 550; cursor: pointer;
+	transition: transform 0.12s ease, background 0.15s ease;
+}
+[data-theme="dark"] .rdg-btn { color: #16181c; }
+.rdg-btn:hover { background: var(--rdg-ink-hover); }
+.rdg-btn:active { transform: translateY(1px); }
+.rdg-btn.is-ghost { background: transparent; color: var(--rdg-text); border-color: var(--rdg-border); }
+.rdg-btn.is-ghost:hover { border-color: var(--rdg-ink); }
+
+/* ---------- skeleton / empty / error ---------- */
+.rdg-skel {
+	height: 132px; border-radius: var(--rdg-radius-card);
+	background: linear-gradient(100deg, var(--rdg-surface) 30%, var(--rdg-surface-2) 50%, var(--rdg-surface) 70%);
+	background-size: 220% 100%; animation: rdg-shimmer 1.3s ease-in-out infinite; border: 1px solid var(--rdg-border);
+}
+@keyframes rdg-shimmer { from { background-position: 200% 0; } to { background-position: -20% 0; } }
+@media (prefers-reduced-motion: reduce) { .rdg-skel { animation: none; } .rdg-card, .rdg-chip, .rdg-btn { transition: none; } }
+
+.rdg-state {
+	grid-column: 1 / -1; text-align: center; padding: 54px 20px; color: var(--rdg-muted);
+	border: 1px dashed var(--rdg-border); border-radius: var(--rdg-radius-card); background: var(--rdg-surface);
+}
+.rdg-state h4 { font-size: 15px; color: var(--rdg-text); margin: 0 0 6px; font-weight: 600; }
+.rdg-state p { font-size: 13px; margin: 0; }
+.rdg-state.is-error { border-color: #f3c2c2; color: #9f1239; }

@@ -1,0 +1,146 @@
+[
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-racedog_bench_section",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "racedog_bench_section",
+  "fieldtype": "Section Break",
+  "label": "Bench & Marketing",
+  "insert_after": "employment_type"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-deployment_status",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "deployment_status",
+  "fieldtype": "Select",
+  "label": "Deployment Status",
+  "options": "Billing\nOn Bench\nMarketing\nInterviewing\nPlaced\nRolling-Off\nDo-Not-Market",
+  "default": "Billing",
+  "in_list_view": 1,
+  "in_standard_filter": 1,
+  "insert_after": "racedog_bench_section"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-bench_start_date",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "bench_start_date",
+  "fieldtype": "Date",
+  "label": "Bench Start Date",
+  "insert_after": "deployment_status"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-availability_date",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "availability_date",
+  "fieldtype": "Date",
+  "label": "Available From",
+  "in_standard_filter": 1,
+  "insert_after": "bench_start_date"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-marketing_owner",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "marketing_owner",
+  "fieldtype": "Link",
+  "label": "Marketing Owner",
+  "options": "User",
+  "in_standard_filter": 1,
+  "insert_after": "availability_date"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-racedog_bench_col",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "racedog_bench_col",
+  "fieldtype": "Column Break",
+  "insert_after": "marketing_owner"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-primary_skill",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "primary_skill",
+  "fieldtype": "Link",
+  "label": "Primary Skill",
+  "options": "Skill",
+  "in_standard_filter": 1,
+  "insert_after": "racedog_bench_col"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-consultant_skills",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "consultant_skills",
+  "fieldtype": "Table MultiSelect",
+  "label": "Skills",
+  "options": "RaceDog Skill Item",
+  "insert_after": "primary_skill"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-visa_status",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "visa_status",
+  "fieldtype": "Link",
+  "label": "Work Authorization",
+  "options": "Work Authorization",
+  "in_standard_filter": 1,
+  "insert_after": "consultant_skills"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-visa_expiry",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "visa_expiry",
+  "fieldtype": "Date",
+  "label": "Work Auth Expiry",
+  "insert_after": "visa_status"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-racedog_rates_section",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "racedog_rates_section",
+  "fieldtype": "Section Break",
+  "label": "Consultant Rates (Manager Only)",
+  "permlevel": 1,
+  "insert_after": "visa_expiry"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-current_bill_rate",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "current_bill_rate",
+  "fieldtype": "Currency",
+  "label": "Current Bill Rate",
+  "permlevel": 1,
+  "insert_after": "racedog_rates_section"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Employee-current_pay_rate",
+  "dt": "Employee",
+  "module": "Racedog HR",
+  "fieldname": "current_pay_rate",
+  "fieldtype": "Currency",
+  "label": "Current Pay Rate",
+  "permlevel": 1,
+  "insert_after": "current_bill_rate"
+ }
+]

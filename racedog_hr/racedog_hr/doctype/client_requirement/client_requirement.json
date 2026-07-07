@@ -1,0 +1,353 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "REQ-.YYYY.-.#####",
+ "creation": "2026-07-06 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_details",
+  "title",
+  "client",
+  "primary_skill",
+  "column_break_status",
+  "status",
+  "priority",
+  "positions",
+  "section_break_ownership",
+  "posted_by",
+  "column_break_ownership",
+  "posted_on",
+  "section_break_location",
+  "location",
+  "work_mode",
+  "column_break_location",
+  "is_remote",
+  "duration",
+  "section_break_skills",
+  "skills",
+  "work_auth_accepted",
+  "section_break_commercials",
+  "bill_rate",
+  "max_bill_rate",
+  "column_break_commercials",
+  "pay_rate_target",
+  "section_break_vendor",
+  "implementation_partner",
+  "vendor_chain",
+  "section_break_jd",
+  "jd_text",
+  "section_break_closure",
+  "closed_on",
+  "closed_reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_details",
+   "fieldtype": "Section Break",
+   "label": "Requirement"
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "End Client",
+   "options": "Client"
+  },
+  {
+   "description": "Primary skill for fast filtering; auto-set from the first row of Skills if left blank.",
+   "fieldname": "primary_skill",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Primary Skill",
+   "options": "Skill",
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_status",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Open\nOn-Hold\nFilled\nClosed",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "default": "Medium",
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Priority",
+   "options": "Low\nMedium\nHigh\nUrgent"
+  },
+  {
+   "default": "1",
+   "fieldname": "positions",
+   "fieldtype": "Int",
+   "label": "Open Positions"
+  },
+  {
+   "fieldname": "section_break_ownership",
+   "fieldtype": "Section Break",
+   "label": "Ownership"
+  },
+  {
+   "description": "Recruiter who owns this requirement.",
+   "fieldname": "posted_by",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Owner",
+   "options": "User"
+  },
+  {
+   "fieldname": "column_break_ownership",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "posted_on",
+   "fieldtype": "Datetime",
+   "label": "Posted On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_location",
+   "fieldtype": "Section Break",
+   "label": "Location & Duration"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Location"
+  },
+  {
+   "default": "Onsite",
+   "fieldname": "work_mode",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Work Mode",
+   "options": "Onsite\nHybrid\nRemote"
+  },
+  {
+   "fieldname": "column_break_location",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_remote",
+   "fieldtype": "Check",
+   "label": "Remote Allowed"
+  },
+  {
+   "fieldname": "duration",
+   "fieldtype": "Data",
+   "label": "Duration",
+   "placeholder": "e.g. 6 months, Contract-to-Hire"
+  },
+  {
+   "fieldname": "section_break_skills",
+   "fieldtype": "Section Break",
+   "label": "Skills & Work Authorization"
+  },
+  {
+   "fieldname": "skills",
+   "fieldtype": "Table MultiSelect",
+   "label": "Skills",
+   "options": "RaceDog Skill Item"
+  },
+  {
+   "fieldname": "work_auth_accepted",
+   "fieldtype": "Table MultiSelect",
+   "label": "Work Authorizations Accepted",
+   "options": "RaceDog Work Auth Item"
+  },
+  {
+   "description": "Rates are visible to managers only (permission level 1).",
+   "fieldname": "section_break_commercials",
+   "fieldtype": "Section Break",
+   "label": "Commercials (Manager Only)",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "bill_rate",
+   "fieldtype": "Currency",
+   "label": "Bill Rate",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "max_bill_rate",
+   "fieldtype": "Currency",
+   "label": "Max Bill Rate",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "column_break_commercials",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pay_rate_target",
+   "fieldtype": "Currency",
+   "label": "Target Pay Rate",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "section_break_vendor",
+   "fieldtype": "Section Break",
+   "label": "Vendor Chain"
+  },
+  {
+   "fieldname": "implementation_partner",
+   "fieldtype": "Link",
+   "label": "Implementation Partner / Prime Vendor",
+   "options": "Vendor"
+  },
+  {
+   "fieldname": "vendor_chain",
+   "fieldtype": "Table",
+   "label": "Vendor Chain",
+   "options": "Requirement Vendor Chain"
+  },
+  {
+   "fieldname": "section_break_jd",
+   "fieldtype": "Section Break",
+   "label": "Job Description"
+  },
+  {
+   "fieldname": "jd_text",
+   "fieldtype": "Text Editor",
+   "label": "Job Description"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_closure",
+   "fieldtype": "Section Break",
+   "label": "Closure"
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Datetime",
+   "label": "Closed On",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:[\"Filled\",\"Closed\"].includes(doc.status)",
+   "fieldname": "closed_reason",
+   "fieldtype": "Small Text",
+   "label": "Closure Reason"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "group": "Activity",
+   "link_doctype": "Submission",
+   "link_fieldname": "requirement"
+  }
+ ],
+ "modified": "2026-07-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Racedog HR",
+ "name": "Client Requirement",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "permlevel": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Recruiting Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Recruiting Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Account Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "permlevel": 1,
+   "read": 1,
+   "role": "Account Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Recruiter",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Bench Sales",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

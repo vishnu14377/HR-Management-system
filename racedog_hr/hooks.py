@@ -1,0 +1,59 @@
+app_name = "racedog_hr"
+app_title = "Racedog HR"
+app_publisher = "RaceDog Technologies"
+app_description = (
+	"Recruiting-coordination layer on Frappe HRMS: bench list, client requirements, "
+	"and submission tracking for IT staffing/consulting."
+)
+app_email = "hr@racedogtechnologies.com"
+app_license = "mit"
+
+# racedog_hr is an extension of HRMS; require it so Employee/HR modules exist.
+required_apps = ["frappe/hrms"]
+
+# ---------------------------------------------------------------------------
+# Fixtures — the whole config schema travels with the app and is re-applied on
+# `bench migrate`. This is what keeps the customization upgrade-safe and
+# reproducible (go-live gate #7 in the plan).
+# ---------------------------------------------------------------------------
+fixtures = [
+	# Custom Fields we add to the standard Employee master (bench/availability).
+	{"doctype": "Custom Field", "filters": [["module", "=", "Racedog HR"]]},
+	# Any Property Setters (list settings, defaults) tagged to our module.
+	{"doctype": "Property Setter", "filters": [["module", "=", "Racedog HR"]]},
+	# Custom recruiting roles.
+	{
+		"doctype": "Role",
+		"filters": [
+			["name", "in", ["Recruiter", "Bench Sales", "Recruiting Manager", "Account Manager"]]
+		],
+	},
+	# Event + scheduled notifications (new requirement, interview scheduled, etc.).
+	{"doctype": "Notification", "filters": [["module", "=", "Racedog HR"]]},
+	# Recruiter landing Workspace + its cards/charts.
+	{"doctype": "Workspace", "filters": [["module", "=", "Racedog HR"]]},
+	{"doctype": "Number Card", "filters": [["module", "=", "Racedog HR"]]},
+	{"doctype": "Dashboard Chart", "filters": [["module", "=", "Racedog HR"]]},
+]
+
+# ---------------------------------------------------------------------------
+# Scheduled jobs — visa/work-auth expiry and bench-availability alerts
+# (go-live gate #3: visa expiry alerting is compliance-critical).
+# ---------------------------------------------------------------------------
+scheduler_events = {
+	"daily": [
+		"racedog_hr.tasks.check_visa_expiry",
+		"racedog_hr.tasks.check_bench_availability",
+	],
+}
+
+# ---------------------------------------------------------------------------
+# Document events — additive hooks on standard/own DocTypes. `validate` on our
+# own DocTypes lives on the controller class; these are for cross-cutting reacts.
+# ---------------------------------------------------------------------------
+doc_events = {
+	"Submission": {
+		"after_insert": "racedog_hr.racedog_hr.doctype.submission.submission.assign_followup",
+		"on_update": "racedog_hr.racedog_hr.doctype.submission.submission.assign_followup",
+	},
+}

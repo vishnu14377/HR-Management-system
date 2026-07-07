@@ -1,0 +1,30 @@
+[
+ {
+  "doctype": "Role",
+  "name": "Recruiter",
+  "role_name": "Recruiter",
+  "desk_access": 1,
+  "two_factor_auth": 0
+ },
+ {
+  "doctype": "Role",
+  "name": "Bench Sales",
+  "role_name": "Bench Sales",
+  "desk_access": 1,
+  "two_factor_auth": 0
+ },
+ {
+  "doctype": "Role",
+  "name": "Recruiting Manager",
+  "role_name": "Recruiting Manager",
+  "desk_access": 1,
+  "two_factor_auth": 0
+ },
+ {
+  "doctype": "Role",
+  "name": "Account Manager",
+  "role_name": "Account Manager",
+  "desk_access": 1,
+  "two_factor_auth": 0
+ }
+]

@@ -1,0 +1,41 @@
+[
+ {
+  "doctype": "Number Card",
+  "name": "Consultants On Bench",
+  "label": "Consultants On Bench",
+  "module": "Racedog HR",
+  "type": "Document Type",
+  "document_type": "Employee",
+  "function": "Count",
+  "is_public": 1,
+  "show_percentage_stats": 0,
+  "color": "#29CD42",
+  "filters_json": "[[\"Employee\", \"status\", \"=\", \"Active\"], [\"Employee\", \"deployment_status\", \"in\", [\"On Bench\", \"Marketing\"]]]"
+ },
+ {
+  "doctype": "Number Card",
+  "name": "Open Requirements",
+  "label": "Open Requirements",
+  "module": "Racedog HR",
+  "type": "Document Type",
+  "document_type": "Client Requirement",
+  "function": "Count",
+  "is_public": 1,
+  "show_percentage_stats": 0,
+  "color": "#7575FF",
+  "filters_json": "[[\"Client Requirement\", \"status\", \"=\", \"Open\"]]"
+ },
+ {
+  "doctype": "Number Card",
+  "name": "Active Submissions",
+  "label": "Active Submissions",
+  "module": "Racedog HR",
+  "type": "Document Type",
+  "document_type": "Submission",
+  "function": "Count",
+  "is_public": 1,
+  "show_percentage_stats": 0,
+  "color": "#FF9800",
+  "filters_json": "[[\"Submission\", \"status\", \"not in\", [\"Rejected\", \"Withdrawn\"]]]"
+ }
+]

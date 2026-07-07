@@ -1,0 +1,61 @@
+[
+ {
+  "doctype": "Notification",
+  "name": "New Client Requirement",
+  "module": "Racedog HR",
+  "subject": "New requirement: {{ doc.title }}",
+  "document_type": "Client Requirement",
+  "is_standard": 1,
+  "enabled": 1,
+  "channel": "System Notification",
+  "event": "New",
+  "condition": "doc.status == 'Open'",
+  "message": "A new client requirement **{{ doc.title }}** is open. Client: {{ doc.client or 'n/a' }} | Skill: {{ doc.primary_skill or 'n/a' }} | Location: {{ doc.location or 'n/a' }}.",
+  "recipients": [
+   {
+    "receiver_by_role": "Recruiter"
+   },
+   {
+    "receiver_by_role": "Bench Sales"
+   }
+  ]
+ },
+ {
+  "doctype": "Notification",
+  "name": "Interview Scheduled",
+  "module": "Racedog HR",
+  "subject": "Interview scheduled: {{ doc.consultant }}",
+  "document_type": "Submission",
+  "is_standard": 1,
+  "enabled": 1,
+  "channel": "System Notification",
+  "event": "Value Change",
+  "value_changed": "status",
+  "condition": "doc.status == 'Interview Scheduled'",
+  "message": "Interview scheduled for **{{ doc.consultant }}** on requirement {{ doc.requirement }}.",
+  "recipients": [
+   {
+    "receiver_by_document_field": "submitted_by"
+   }
+  ]
+ },
+ {
+  "doctype": "Notification",
+  "name": "Consultant Now On Bench",
+  "module": "Racedog HR",
+  "subject": "On bench: {{ doc.employee_name }}",
+  "document_type": "Employee",
+  "is_standard": 1,
+  "enabled": 1,
+  "channel": "System Notification",
+  "event": "Value Change",
+  "value_changed": "deployment_status",
+  "condition": "doc.deployment_status == 'On Bench'",
+  "message": "**{{ doc.employee_name }}** is now on the bench. Primary skill: {{ doc.primary_skill or 'n/a' }} | Available: {{ doc.availability_date or 'now' }}.",
+  "recipients": [
+   {
+    "receiver_by_role": "Bench Sales"
+   }
+  ]
+ }
+]

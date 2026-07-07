@@ -1,60 +1,71 @@
 # It's running — how to use it
 
 A full stack (Frappe + ERPNext + HRMS + **racedog_hr**) is running locally in Docker,
-seeded with demo data. Screenshots are on your Desktop in `racedog-demo-screenshots/`.
+tailored for a pure IT-outsourcing consulting firm and seeded with demo data.
+Screenshots are on your Desktop in `racedog-demo-screenshots/`.
 
 ## Open it
 
 **http://localhost:8080**
 
-| Login | Password | Sees rates? |
-|---|---|---|
-| `Administrator` | `admin` | yes (admin) |
-| `manager@racedog.test` | `racedog123` | **yes** (Recruiting Manager) |
-| `recruiter@racedog.test` | `racedog123` | **no** (rate firewall) |
+| Login | Password | Sees rates/margin? | Lands on |
+|---|---|---|---|
+| `recruiter@racedog.test` | `racedog123` | **no** (firewall) | Bench Board |
+| `manager@racedog.test` | `racedog123` | **yes** | Bench Board |
+| `Administrator` | `admin` | yes (admin) | full desk |
 
-## Where to look
+> If a page ever flickers or looks stale, hard-refresh (`Cmd+Shift+R`) or log out/in —
+> that's browser cache, not the app.
 
-- **Bench Board** (the custom recruiter UI): http://localhost:8080/app/bench-board
-  Consultant cards with status pills, skill/visa tags, filters, and drag-to-requirement.
-- **Bench & Requirements** workspace (sidebar): number cards + shortcuts + doctype links.
-- **Client Requirement**, **Submission**, **Employee**: standard Desk lists (try filtering
-  Employee by Deployment Status).
+## What the recruiting team gets
 
-## See the rate firewall yourself
+- **Bench Board** (`/app/bench-board`) — the daily dashboard. Consultant cards show
+  **name, email, phone, current client, status**, with a **hotlist traffic light**:
+  🔴 Red = top priority (market now), 🟠 Orange = has bandwidth / casual, 🟢 Green = not
+  looking. Sorted Red→Orange→Green. Filter by status (Bench / All / Working / On Bench /
+  Marketing), hotlist, skill, work-auth. "Market" a consultant onto an open requirement.
+- **Common Job Board** — `Client Requirement`. **Any recruiter can post / edit / delete /
+  update any requirement.** `Filled Via` records Internal Bench vs External Candidate.
+- **Employee (consultant) master** — managers create/update/delete; **documents** (resume,
+  visa, DL, ...) attach here and **recruiters can download them**. Rates (bill/pay/margin)
+  are manager-only. Status = Working / On Bench / Marketing; hotlist auto-locks to Green
+  while Working.
+- **Submissions** — bench consultant *or* external candidate (middle-vendor) via a `Source`
+  flag; blocks double-submission; auto-fills the requirement when Placed.
 
-1. Log in as `recruiter@racedog.test` → open any consultant (Employee) → there is **no**
-   "Consultant Rates" section, and the Bench Board shows no rates.
-2. Log in as `manager@racedog.test` → same consultant shows **Consultant Rates (Manager
-   Only)** with Bill/Pay rate.
+Recruiters see **only** the "Bench & Requirements" workspace — all the ERPNext/HRMS
+clutter (Accounting, Projects, Manufacturing, Stock, Payroll, etc.) is hidden.
 
-## Demo data loaded
+## See the model working
 
-1 company (RaceDog Technologies), 8 consultants across bench statuses, 5 open client
-requirements, 2 submissions, plus the two demo logins.
+- Log in as **recruiter** → Bench Board shows 6 bench consultants, hotlist-colored, **no
+  rates**. Click "All" to see Working consultants with their current client.
+- Log in as **manager** → open a consultant → **Billing (Manager Only)** shows Bill Rate,
+  Pay Rate, and auto-computed **Margin**; the **Documents** table is uploadable.
 
-Re-seed or re-verify anytime:
+## Demo data
+
+1 company, 8 consultants (mix of Working / On Bench / Marketing, red/orange/green hotlist),
+5 open requirements, 3 submissions (2 bench + 1 external candidate).
+
+Refresh it anytime (from the frappe_docker dir with `racedog.yml`):
 ```bash
-# from the frappe_docker dir that has racedog.yml (see deploy/local/)
 docker compose -f racedog.yml exec backend bench --site frontend console
->>> from racedog_hr.demo import seed, verify
->>> seed(); verify()
+>>> from racedog_hr.demo import reset, verify
+>>> reset()    # clean wipe + reseed for the current model
+>>> verify()   # proves the rate firewall (recruiter hidden / manager visible)
 ```
 
 ## Manage the stack
 
 ```bash
-docker ps                                   # see the fd-* containers
-docker compose -f racedog.yml ps            # (from the frappe_docker dir)
-docker compose -f racedog.yml stop          # pause
-docker compose -f racedog.yml start         # resume
+docker ps                                   # the fd-* containers
+docker compose -f racedog.yml stop|start    # pause / resume (data persists in volumes)
 docker compose -f racedog.yml logs -f backend
 ```
 
-Data persists in Docker volumes (`sites`, `db-data`) across stop/start.
+## Production
 
-## This is a local demo
-
-It runs on **version-15** with upstream frappe/erpnext/hrms + `racedog_hr` from the
-`feat/racedog-hr-app` branch. For production on your VPS with your own HRMS fork, follow
-[INSTALL.md](INSTALL.md). Reproduce this local stack from [deploy/local/](deploy/local/).
+Local demo runs on **version-15** (upstream frappe/erpnext/hrms + `racedog_hr`). For your
+VPS with your own HRMS fork, see [INSTALL.md](INSTALL.md); reproduce this stack from
+[deploy/local/](deploy/local/). Security model + go-live gates: [SECURITY.md](SECURITY.md).

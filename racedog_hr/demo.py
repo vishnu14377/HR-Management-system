@@ -338,3 +338,19 @@ def _peek_rate():
 		return "no-rows"
 	value = rows[0].get("current_bill_rate")
 	return "hidden" if value in (None, 0) else f"VISIBLE({value})"
+
+
+def reset():
+	"""Wipe demo submissions + consultants and re-seed fresh (for a clean demo refresh).
+
+	Run: from racedog_hr.demo import reset; reset()
+	"""
+	frappe.set_user("Administrator")
+	frappe.db.delete("Submission")
+	for name in frappe.get_all("Employee", pluck="name"):
+		try:
+			frappe.delete_doc("Employee", name, force=1, ignore_permissions=True)
+		except Exception as ex:
+			print(f"  could not delete {name}: {repr(ex)[:120]}")
+	frappe.db.commit()
+	return seed()

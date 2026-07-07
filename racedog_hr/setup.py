@@ -34,6 +34,10 @@ HIDE_WORKSPACES = (
 # Native Employee fields to surface in the list view (dashboard columns).
 LIST_FIELDS = ("company_email", "cell_number")
 
+# Our workspace — the one thing recruiters/managers should see.
+OUR_WORKSPACE = "Bench & Requirements"
+TEAM_ROLES = ("System Manager", "HR Manager", *RECRUITING_ROLES)
+
 
 def after_install() -> None:
 	_apply()
@@ -78,11 +82,38 @@ def _surface_list_fields() -> None:
 
 
 def _debloat() -> None:
-	"""Hide ERPNext/HRMS workspaces the firm never uses; land recruiters on the board."""
+	"""Give the recruiting team a single-workspace experience.
+
+	Never-used modules are hidden globally; every other standard workspace is
+	restricted to admins, so recruiters/managers see ONLY our workspace and land
+	on it. Idempotent and self-healing (re-applied every migrate).
+	"""
 	for ws in HIDE_WORKSPACES:
 		if frappe.db.exists("Workspace", ws):
 			frappe.db.set_value("Workspace", ws, "is_hidden", 1)
 
+	# Restrict every other public workspace to admins.
+	for ws in frappe.get_all("Workspace", filters={"public": 1}, pluck="name"):
+		if ws == OUR_WORKSPACE:
+			continue
+		if not frappe.db.exists("Has Role", {"parent": ws, "parenttype": "Workspace"}):
+			_add_workspace_role(ws, "System Manager")
+
+	# Make sure the whole team can see our workspace.
+	for role in TEAM_ROLES:
+		_add_workspace_role(OUR_WORKSPACE, role)
+
+	# Land recruiting roles on the board.
 	for role in RECRUITING_ROLES:
 		if frappe.db.exists("Role", role):
 			frappe.db.set_value("Role", role, "home_page", "app/bench-board")
+
+
+def _add_workspace_role(workspace: str, role: str) -> None:
+	if not frappe.db.exists("Workspace", workspace) or not frappe.db.exists("Role", role):
+		return
+	if frappe.db.exists("Has Role", {"parent": workspace, "parenttype": "Workspace", "role": role}):
+		return
+	doc = frappe.get_doc("Workspace", workspace)
+	doc.append("roles", {"role": role})
+	doc.save(ignore_permissions=True)

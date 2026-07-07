@@ -61,4 +61,11 @@ doc_events = {
 		"after_insert": "racedog_hr.racedog_hr.doctype.submission.submission.assign_followup",
 		"on_update": "racedog_hr.racedog_hr.doctype.submission.submission.assign_followup",
 	},
+	"Employee": {
+		"validate": "racedog_hr.employee_hooks.apply_status_rules",
+	},
 }
+
+# Color the Employee list rows by deployment status (v15 has no native Select
+# option colors, so this drives the list indicator).
+doctype_list_js = {"Employee": "public/js/employee_list.js"}

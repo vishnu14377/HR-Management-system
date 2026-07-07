@@ -39,6 +39,7 @@
   "section_break_jd",
   "jd_text",
   "section_break_closure",
+  "filled_via",
   "closed_on",
   "closed_reason"
  ],
@@ -241,6 +242,14 @@
    "label": "Closure"
   },
   {
+   "depends_on": "eval:doc.status=='Filled'",
+   "description": "Did we place our own bench consultant, or an external candidate (middle-vendor)?",
+   "fieldname": "filled_via",
+   "fieldtype": "Select",
+   "label": "Filled Via",
+   "options": "\nInternal Bench\nExternal Candidate"
+  },
+  {
    "fieldname": "closed_on",
    "fieldtype": "Datetime",
    "label": "Closed On",
@@ -325,6 +334,7 @@
   },
   {
    "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
    "print": 1,
@@ -336,6 +346,7 @@
   },
   {
    "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
    "print": 1,

@@ -1,25 +1,21 @@
 # Copyright (c) 2026, RaceDog Technologies and contributors
 """Whitelisted JSON API for the Bench Board (Desk page + any future SPA).
 
-Design notes:
-  * Reads go through ``frappe.get_list`` with an explicit non-rate field allowlist,
-    so rate/margin can never leak even if the caller has level-1 access — and
-    get_list still enforces the user's read permission on Employee.
-  * ``update_bench`` is field-allowlisted and role-gated, then saves with
-    ``ignore_permissions`` so it stays safe under either permission model
-    (recruiter-writable or recruiter-read-only Employee).
-  * Every response uses a ``{"data": ..., "meta": ...}`` envelope.
+Reads go through ``frappe.get_list`` with an explicit non-rate field allowlist,
+so rate/margin can never leak even if the caller has level-1 access. The write
+path is field-allowlisted and role-gated, then saves with ``ignore_permissions``
+so it stays safe under either permission model. Every response uses a
+``{"data": ..., "meta": ...}`` envelope.
 """
 
 import frappe
 from frappe import _
 
-# Roles allowed to use the board at all.
 RECRUITING_ROLES = frozenset(
 	{"Recruiter", "Bench Sales", "Recruiting Manager", "Account Manager", "HR Manager", "System Manager"}
 )
 
-# The ONLY Employee fields a board read returns — deliberately no rate/PII columns.
+# The ONLY Employee fields a board read returns — deliberately no rate/PII-heavy columns.
 BENCH_FIELDS = (
 	"name",
 	"employee_name",
@@ -27,25 +23,40 @@ BENCH_FIELDS = (
 	"department",
 	"image",
 	"deployment_status",
+	"hotlist",
+	"current_client",
 	"primary_skill",
 	"visa_status",
 	"visa_expiry",
 	"availability_date",
 	"bench_start_date",
 	"marketing_owner",
+	"company_email",
+	"personal_email",
+	"cell_number",
 )
 
 # The ONLY Employee fields the board write may touch.
 UPDATABLE_BENCH_FIELDS = frozenset(
-	{"deployment_status", "availability_date", "bench_start_date", "marketing_owner", "primary_skill"}
+	{
+		"deployment_status",
+		"hotlist",
+		"current_client",
+		"availability_date",
+		"bench_start_date",
+		"marketing_owner",
+		"primary_skill",
+	}
 )
 
-VALID_DEPLOYMENT_STATUSES = frozenset(
-	{"Billing", "On Bench", "Marketing", "Interviewing", "Placed", "Rolling-Off", "Do-Not-Market"}
-)
+VALID_DEPLOYMENT_STATUSES = frozenset({"Working", "On Bench", "Marketing"})
+VALID_HOTLIST = frozenset({"Red", "Orange", "Green"})
 
-# Consultants shown on the board by default (available / being worked).
-DEFAULT_BENCH_STATUSES = ["On Bench", "Marketing", "Interviewing", "Rolling-Off"]
+# Consultants shown on the board by default: not currently placed = available to market.
+DEFAULT_BENCH_STATUSES = ["On Bench", "Marketing"]
+
+# Sort order for the hotlist: Red (hottest) first.
+_HOTLIST_ORDER = {"Red": 0, "Orange": 1, "Green": 2}
 
 REQUIREMENT_FIELDS = (
 	"name",
@@ -66,17 +77,23 @@ def get_bench(
 	skill: str | None = None,
 	visa: str | None = None,
 	deployment_status: str | None = None,
+	hotlist: str | None = None,
 	available_by: str | None = None,
 	start: int = 0,
-	page_length: int = 50,
+	page_length: int = 100,
 ) -> dict:
-	"""Return bench consultants (no rate/PII fields) with optional facet filters."""
+	"""Return bench consultants (no rate fields), sorted Red→Orange→Green."""
 	_require_recruiting_role()
 
 	filters: dict = {"status": "Active"}
-	filters["deployment_status"] = (
-		deployment_status if deployment_status else ["in", DEFAULT_BENCH_STATUSES]
-	)
+	if deployment_status == "All":
+		pass  # every active consultant, incl. Working
+	elif deployment_status:
+		filters["deployment_status"] = deployment_status
+	else:
+		filters["deployment_status"] = ["in", DEFAULT_BENCH_STATUSES]
+	if hotlist:
+		filters["hotlist"] = hotlist
 	if skill:
 		filters["primary_skill"] = skill
 	if visa:
@@ -98,13 +115,10 @@ def get_bench(
 		start=int(start),
 		page_length=int(page_length),
 	)
+	rows.sort(key=lambda r: _HOTLIST_ORDER.get(r.get("hotlist"), 3))
 	return {
 		"data": rows,
-		"meta": {
-			"start": int(start),
-			"page_length": int(page_length),
-			"returned": len(rows),
-		},
+		"meta": {"start": int(start), "page_length": int(page_length), "returned": len(rows)},
 	}
 
 
@@ -151,7 +165,10 @@ def update_bench(employee: str, updates: str | dict) -> dict:
 
 	status = payload.get("deployment_status")
 	if status is not None and status not in VALID_DEPLOYMENT_STATUSES:
-		frappe.throw(_("Invalid deployment status: {0}").format(status), frappe.exceptions.ValidationError)
+		frappe.throw(_("Invalid status: {0}").format(status), frappe.exceptions.ValidationError)
+	hot = payload.get("hotlist")
+	if hot is not None and hot not in VALID_HOTLIST:
+		frappe.throw(_("Invalid hotlist value: {0}").format(hot), frappe.exceptions.ValidationError)
 
 	if not frappe.db.exists("Employee", employee):
 		frappe.throw(_("Consultant {0} not found.").format(employee), frappe.exceptions.DoesNotExistError)
@@ -159,12 +176,14 @@ def update_bench(employee: str, updates: str | dict) -> dict:
 	doc = frappe.get_doc("Employee", employee)
 	for field, value in payload.items():
 		doc.set(field, value)
-	doc.save(ignore_permissions=True)
+	doc.save(ignore_permissions=True)  # employee_hooks.apply_status_rules still runs
 
 	return {
 		"data": {
 			"employee": doc.name,
 			"deployment_status": doc.deployment_status,
+			"hotlist": doc.hotlist,
+			"current_client": doc.current_client,
 			"availability_date": doc.availability_date,
 		}
 	}
@@ -172,10 +191,10 @@ def update_bench(employee: str, updates: str | dict) -> dict:
 
 @frappe.whitelist(methods=["POST"])
 def create_submission(consultant: str, requirement: str, vendor: str | None = None) -> dict:
-	"""Create a Submission (drag consultant → requirement).
+	"""Create a bench-consultant Submission (drag consultant → requirement).
 
 	Runs with the caller's own permissions so the double-submission / RTR
-	validation in ``Submission.validate`` still fires and blocks duplicates.
+	validation still fires and blocks duplicates.
 	"""
 	_require_recruiting_role()
 
@@ -189,6 +208,7 @@ def create_submission(consultant: str, requirement: str, vendor: str | None = No
 	doc = frappe.get_doc(
 		{
 			"doctype": "Submission",
+			"source": "Bench Consultant",
 			"consultant": consultant,
 			"requirement": requirement,
 			"vendor": vendor,

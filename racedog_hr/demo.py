@@ -43,16 +43,16 @@ VENDORS = [
 	("TriState Staffing", "Sub Vendor"),
 ]
 
-# first, last, gender, skill, visa, deployment_status, days_until_available, bill, pay
+# first, last, gender, skill, visa, status, hotlist, days_until_available, bill, pay, current_client
 CONSULTANTS = [
-	("Priya", "Nair", "Female", "Python", "H1B", "On Bench", -12, 92, 68),
-	("Marcus", "Bell", "Male", "Java", "USC", "On Bench", -5, 105, 80),
-	("Wei", "Zhang", "Male", "React", "OPT-EAD", "Marketing", 3, 88, 60),
-	("Sofia", "Reyes", "Female", "AWS", "GC", "Marketing", 0, 110, 82),
-	("Dev", "Patel", "Male", "Data Engineer", "H1B", "Interviewing", -20, 98, 70),
-	("Hana", "Okafor", "Female", "Salesforce", "GC-EAD", "On Bench", 7, 95, 72),
-	("Liam", "Novak", "Male", "DevOps", "TN", "Rolling-Off", 21, 100, 76),
-	("Aisha", "Rahman", "Female", "SAP", "USC", "Billing", 45, 120, 90),
+	("Priya", "Nair", "Female", "Python", "H1B", "Marketing", "Red", -12, 92, 68, None),
+	("Marcus", "Bell", "Male", "Java", "USC", "On Bench", "Orange", -5, 105, 80, None),
+	("Wei", "Zhang", "Male", "React", "OPT-EAD", "Marketing", "Red", 3, 88, 60, None),
+	("Sofia", "Reyes", "Female", "AWS", "GC", "Marketing", "Orange", 0, 110, 82, None),
+	("Dev", "Patel", "Male", "Data Engineer", "H1B", "On Bench", "Red", -20, 98, 70, None),
+	("Hana", "Okafor", "Female", "Salesforce", "GC-EAD", "On Bench", "Green", 7, 95, 72, None),
+	("Liam", "Novak", "Male", "DevOps", "TN", "Working", "Green", 0, 100, 76, "Cobalt Financial"),
+	("Aisha", "Rahman", "Female", "SAP", "USC", "Working", "Green", 0, 120, 90, "Vertex Logistics"),
 ]
 
 # title, client, skill, priority, location, work_mode, max_bill
@@ -136,7 +136,8 @@ def _masters():
 
 def _consultants():
 	created = []
-	for first, last, gender, skill, visa, status, avail_offset, bill, pay in CONSULTANTS:
+	for i, row in enumerate(CONSULTANTS):
+		first, last, gender, skill, visa, status, hotlist, avail_offset, bill, pay, client = row
 		existing = frappe.db.get_value("Employee", {"employee_name": f"{first} {last}"})
 		if existing:
 			created.append(existing)
@@ -152,7 +153,11 @@ def _consultants():
 					"date_of_birth": "1990-01-15",
 					"date_of_joining": "2023-02-01",
 					"status": "Active",
+					"personal_email": f"{first.lower()}.{last.lower()}@example.com",
+					"cell_number": f"+1 (312) 555-01{i:02d}",
 					"deployment_status": status,
+					"hotlist": hotlist,
+					"current_client": client,
 					"primary_skill": skill,
 					"consultant_skills": [{"skill": skill}],
 					"visa_status": visa,
@@ -203,6 +208,7 @@ def _requirements():
 def _submissions(consultants, requirements):
 	if not consultants or not requirements:
 		return
+	# bench consultant submissions
 	pairs = [(consultants[0], requirements[0])]
 	if len(consultants) > 2 and len(requirements) > 1:
 		pairs.append((consultants[2], requirements[1]))
@@ -213,6 +219,7 @@ def _submissions(consultants, requirements):
 			frappe.get_doc(
 				{
 					"doctype": "Submission",
+					"source": "Bench Consultant",
 					"consultant": consultant,
 					"requirement": requirement,
 					"status": "Submitted",
@@ -220,6 +227,25 @@ def _submissions(consultants, requirements):
 			).insert(ignore_permissions=True)
 		except Exception as e:
 			print(f"  submission skipped: {repr(e)[:160]}")
+
+	# external candidate (middle-vendor) submission
+	if len(requirements) > 2 and not frappe.db.exists("Submission", {"external_name": "Ganesh Iyer"}):
+		try:
+			frappe.get_doc(
+				{
+					"doctype": "Submission",
+					"source": "External Candidate",
+					"requirement": requirements[2],
+					"external_name": "Ganesh Iyer",
+					"external_email": "ganesh.iyer@example.com",
+					"external_phone": "+1 (469) 555-0142",
+					"external_work_auth": "H1B",
+					"external_employer": "Third-Party Tek LLC",
+					"status": "Submitted",
+				}
+			).insert(ignore_permissions=True)
+		except Exception as e:
+			print(f"  external submission skipped: {repr(e)[:160]}")
 
 
 def _users():

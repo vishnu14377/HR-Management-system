@@ -145,16 +145,36 @@
 .rdg-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .rdg-avail { font-size: 11.5px; color: var(--rdg-faint); font-variant-numeric: tabular-nums; }
 
-/* ---------- status pills (semantic — the only non-ink color) ---------- */
+/* ---------- status pills (Working / On Bench / Marketing) ---------- */
 .rdg-pill { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
-.rdg-pill[data-s="On Bench"]     { background: #dcfce7; color: #14663a; }
-.rdg-pill[data-s="Marketing"]    { background: #fef3c7; color: #92400e; }
-.rdg-pill[data-s="Interviewing"] { background: #dbeafe; color: #1e40af; }
-.rdg-pill[data-s="Placed"]       { background: #e8eaed; color: #3a3f47; }
-.rdg-pill[data-s="Rolling-Off"]  { background: #ffedd5; color: #9a3412; }
-.rdg-pill[data-s="Billing"]      { background: #ccfbf1; color: #115e59; }
-.rdg-pill[data-s="Do-Not-Market"]{ background: #ffe4e6; color: #9f1239; }
+.rdg-pill[data-s="Working"]   { background: #dcfce7; color: #14663a; }
+.rdg-pill[data-s="On Bench"]  { background: #fef3c7; color: #92400e; }
+.rdg-pill[data-s="Marketing"] { background: #dbeafe; color: #1e40af; }
 [data-theme="dark"] .rdg-pill { filter: saturate(0.85) brightness(0.92); }
+
+/* ---------- hotlist traffic light ---------- */
+.rdg-dot { display: inline-block; width: 9px; height: 9px; border-radius: 999px; margin-left: 4px; vertical-align: middle; }
+.rdg-dot[data-hot="Red"]    { background: #ef4444; }
+.rdg-dot[data-hot="Orange"] { background: #f59e0b; }
+.rdg-dot[data-hot="Green"]  { background: #22c55e; }
+/* colored left edge on the card by hotlist */
+.rdg-card[data-hot="Red"]    { box-shadow: inset 4px 0 0 #ef4444; }
+.rdg-card[data-hot="Orange"] { box-shadow: inset 4px 0 0 #f59e0b; }
+.rdg-card[data-hot="Green"]  { box-shadow: inset 4px 0 0 #22c55e; }
+.rdg-card[data-hot="Red"]:hover    { box-shadow: inset 4px 0 0 #ef4444, var(--rdg-shadow); }
+.rdg-card[data-hot="Orange"]:hover { box-shadow: inset 4px 0 0 #f59e0b, var(--rdg-shadow); }
+.rdg-card[data-hot="Green"]:hover  { box-shadow: inset 4px 0 0 #22c55e, var(--rdg-shadow); }
+
+/* ---------- contact + current client lines ---------- */
+.rdg-card-head { min-width: 0; }
+.rdg-contact { font-size: 12px; color: var(--rdg-muted); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rdg-client { font-size: 12px; color: var(--rdg-text); margin-bottom: 10px; }
+.rdg-client b { font-weight: 600; }
+
+/* ---------- chip rows (status + hotlist) ---------- */
+.rdg-chiprow { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 12px; }
+.rdg-chiplabel { font-size: 12px; color: var(--rdg-faint); font-weight: 600; margin-right: 2px; }
+.rdg-hotchip .rdg-dot { margin-left: 0; margin-right: 6px; }
 
 /* ---------- requirements rail ---------- */
 .rdg-req {

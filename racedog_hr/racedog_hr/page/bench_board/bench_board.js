@@ -1,4 +1,4 @@
-// Bench Board — recruiter marketing board. Reads/writes only via the whitelisted
+// Bench Board — recruiter marketing dashboard. Reads/writes only via the whitelisted
 // racedog_hr.api methods, so rate/margin never reaches the client.
 
 frappe.pages["bench-board"].on_page_load = function (wrapper) {
@@ -11,12 +11,25 @@ frappe.pages["bench-board"].on_page_load = function (wrapper) {
 	const board = new BenchBoard(page);
 };
 
-const BENCH_STATUSES = ["On Bench", "Marketing", "Interviewing", "Rolling-Off"];
+// label -> deployment_status value ("" = default bench view, "All" = everyone)
+const STATUS_CHIPS = [
+	{ label: "Bench", value: "" },
+	{ label: "All", value: "All" },
+	{ label: "Working", value: "Working" },
+	{ label: "On Bench", value: "On Bench" },
+	{ label: "Marketing", value: "Marketing" },
+];
+const HOTLIST_CHIPS = [
+	{ label: "All", value: "" },
+	{ label: "Red", value: "Red" },
+	{ label: "Orange", value: "Orange" },
+	{ label: "Green", value: "Green" },
+];
 
 class BenchBoard {
 	constructor(page) {
 		this.page = page;
-		this.state = { search: "", skill: "", visa: "", status: "" };
+		this.state = { search: "", skill: "", visa: "", status: "", hotlist: "" };
 		this.requirements = [];
 		this.$root = $('<div class="rdg-bench">').appendTo(page.main);
 		this.build_shell();
@@ -31,11 +44,12 @@ class BenchBoard {
 				<select class="rdg-select rdg-f-skill"><option value="">${__("All skills")}</option></select>
 				<select class="rdg-select rdg-f-visa"><option value="">${__("All work auth")}</option></select>
 			</div>
-			<div class="rdg-chips"></div>
+			<div class="rdg-chiprow rdg-status-chips"></div>
+			<div class="rdg-chiprow rdg-hot-chips"><span class="rdg-chiplabel">${__("Hotlist")}</span></div>
 			<div class="rdg-grid">
 				<div>
 					<div class="rdg-col-head">
-						<span class="rdg-col-title">${__("Bench")}</span>
+						<span class="rdg-col-title">${__("Consultants")}</span>
 						<span class="rdg-col-count rdg-bench-count"></span>
 					</div>
 					<div class="rdg-cards"></div>
@@ -53,21 +67,31 @@ class BenchBoard {
 		this.$cards = this.$root.find(".rdg-cards");
 		this.$reqs = this.$root.find(".rdg-reqs");
 
-		// status chips
-		const $chips = this.$root.find(".rdg-chips");
-		["", ...BENCH_STATUSES].forEach((status) => {
-			const label = status || __("All");
-			$(`<button class="rdg-chip${status === "" ? " is-active" : ""}">${frappe.utils.escape_html(label)}</button>`)
+		const $status = this.$root.find(".rdg-status-chips");
+		STATUS_CHIPS.forEach((chip, i) => {
+			$(`<button class="rdg-chip${i === 0 ? " is-active" : ""}">${frappe.utils.escape_html(chip.label)}</button>`)
 				.on("click", (e) => {
-					this.state.status = status;
-					$chips.find(".rdg-chip").removeClass("is-active");
+					this.state.status = chip.value;
+					$status.find(".rdg-chip").removeClass("is-active");
 					$(e.currentTarget).addClass("is-active");
 					this.load_bench();
 				})
-				.appendTo($chips);
+				.appendTo($status);
 		});
 
-		// search (debounced) + selects
+		const $hot = this.$root.find(".rdg-hot-chips");
+		HOTLIST_CHIPS.forEach((chip, i) => {
+			const dot = chip.value ? `<span class="rdg-dot" data-hot="${chip.value}"></span>` : "";
+			$(`<button class="rdg-chip rdg-hotchip${i === 0 ? " is-active" : ""}">${dot}${frappe.utils.escape_html(chip.label)}</button>`)
+				.on("click", (e) => {
+					this.state.hotlist = chip.value;
+					$hot.find(".rdg-chip").removeClass("is-active");
+					$(e.currentTarget).addClass("is-active");
+					this.load_bench();
+				})
+				.appendTo($hot);
+		});
+
 		this.$root.find(".rdg-search").on(
 			"input",
 			frappe.utils.debounce((e) => {
@@ -91,7 +115,8 @@ class BenchBoard {
 				frappe.db.get_list("Skill", { pluck: "name", limit: 0, order_by: "name asc" }),
 				frappe.db.get_list("Work Authorization", { pluck: "name", limit: 0, order_by: "name asc" }),
 			]);
-			const opts = (list) => list.map((v) => `<option value="${frappe.utils.escape_html(v)}">${frappe.utils.escape_html(v)}</option>`).join("");
+			const opts = (list) =>
+				list.map((v) => `<option value="${frappe.utils.escape_html(v)}">${frappe.utils.escape_html(v)}</option>`).join("");
 			this.$root.find(".rdg-f-skill").append(opts(skills));
 			this.$root.find(".rdg-f-visa").append(opts(visas));
 		} catch (e) {
@@ -113,6 +138,7 @@ class BenchBoard {
 				skill: this.state.skill || null,
 				visa: this.state.visa || null,
 				deployment_status: this.state.status || null,
+				hotlist: this.state.hotlist || null,
 			},
 			callback: (r) => this.render_cards((r.message && r.message.data) || []),
 			error: () => this.render_error(this.$cards),
@@ -135,13 +161,17 @@ class BenchBoard {
 	}
 
 	render_error($target) {
-		$target.html(`<div class="rdg-state is-error"><h4>${__("Could not load")}</h4><p>${__("Please refresh. If this persists, contact your admin.")}</p></div>`);
+		$target.html(
+			`<div class="rdg-state is-error"><h4>${__("Could not load")}</h4><p>${__("Please refresh. If this persists, contact your admin.")}</p></div>`
+		);
 	}
 
 	render_cards(rows) {
 		this.$root.find(".rdg-bench-count").text(`${rows.length} ${__("consultant(s)")}`);
 		if (!rows.length) {
-			this.$cards.html(`<div class="rdg-state"><h4>${__("No one on the bench matches")}</h4><p>${__("Adjust the filters, or mark a consultant On Bench from their Employee record.")}</p></div>`);
+			this.$cards.html(
+				`<div class="rdg-state"><h4>${__("No consultants match")}</h4><p>${__("Adjust the filters, or set a consultant's status from their Employee record.")}</p></div>`
+			);
 			return;
 		}
 		this.$cards.empty();
@@ -149,29 +179,38 @@ class BenchBoard {
 	}
 
 	card_html(row) {
+		const esc = frappe.utils.escape_html;
 		const initials = (row.employee_name || "?")
 			.split(" ")
 			.map((p) => p[0])
 			.slice(0, 2)
 			.join("")
 			.toUpperCase();
-		const avatar = row.image
-			? `style="background-image:url('${encodeURI(row.image)}')"`
-			: "";
-		const esc = frappe.utils.escape_html;
+		const avatar = row.image ? `style="background-image:url('${encodeURI(row.image)}')"` : "";
+		const email = row.company_email || row.personal_email || "";
+		const phone = row.cell_number || "";
+		const hot = row.hotlist || "";
 		const avail = row.availability_date
 			? __("Avail {0}", [frappe.datetime.str_to_user(row.availability_date)])
 			: __("Available now");
 
+		const contactBits = [];
+		if (email) contactBits.push(esc(email));
+		if (phone) contactBits.push(esc(phone));
+
 		const $card = $(`
-			<div class="rdg-card" draggable="true" data-employee="${esc(row.name)}">
+			<div class="rdg-card" data-hot="${esc(hot)}" draggable="true" data-employee="${esc(row.name)}">
 				<div class="rdg-card-top">
 					<div class="rdg-avatar" ${avatar}>${avatar ? "" : esc(initials)}</div>
-					<div>
-						<div class="rdg-name">${esc(row.employee_name || row.name)}</div>
+					<div class="rdg-card-head">
+						<div class="rdg-name">${esc(row.employee_name || row.name)}
+							${hot ? `<span class="rdg-dot" data-hot="${esc(hot)}" title="Hotlist: ${esc(hot)}"></span>` : ""}
+						</div>
 						<div class="rdg-role">${esc(row.designation || __("Consultant"))}</div>
 					</div>
 				</div>
+				${contactBits.length ? `<div class="rdg-contact">${contactBits.join(" &middot; ")}</div>` : ""}
+				${row.current_client ? `<div class="rdg-client">${__("at")} <b>${esc(row.current_client)}</b></div>` : ""}
 				<div class="rdg-meta">
 					${row.primary_skill ? `<span class="rdg-tag"><b>${esc(row.primary_skill)}</b></span>` : ""}
 					${row.visa_status ? `<span class="rdg-tag">${esc(row.visa_status)}</span>` : ""}
@@ -180,7 +219,7 @@ class BenchBoard {
 					<span class="rdg-pill" data-s="${esc(row.deployment_status || "")}">${esc(row.deployment_status || "-")}</span>
 					<button class="rdg-btn rdg-market">${__("Market")}</button>
 				</div>
-				<div class="rdg-avail" style="margin-top:8px">${esc(avail)}</div>
+				<div class="rdg-avail">${esc(avail)}</div>
 			</div>
 		`);
 
@@ -197,7 +236,9 @@ class BenchBoard {
 	render_reqs(rows) {
 		this.$root.find(".rdg-req-count").text(`${rows.length} ${__("open")}`);
 		if (!rows.length) {
-			this.$reqs.html(`<div class="rdg-state"><h4>${__("No open requirements")}</h4><p>${__("Post one from Client Requirement.")}</p></div>`);
+			this.$reqs.html(
+				`<div class="rdg-state"><h4>${__("No open requirements")}</h4><p>${__("Post one from Client Requirement.")}</p></div>`
+			);
 			return;
 		}
 		this.$reqs.empty();
@@ -224,7 +265,7 @@ class BenchBoard {
 				$req.removeClass("is-drop");
 				const employee = e.originalEvent.dataTransfer.getData("text/employee");
 				const name = e.originalEvent.dataTransfer.getData("text/name");
-				if (employee) this.create_submission(employee, req.name, name, req.title);
+				if (employee) this.create_submission(employee, req.name, name);
 			});
 			this.$reqs.append($req);
 		});
@@ -255,7 +296,7 @@ class BenchBoard {
 		d.show();
 	}
 
-	create_submission(consultant, requirement, consultantName, reqTitle) {
+	create_submission(consultant, requirement, consultantName) {
 		frappe.call({
 			method: "racedog_hr.api.create_submission",
 			args: { consultant, requirement },
@@ -269,7 +310,6 @@ class BenchBoard {
 					);
 				}
 			},
-			// double-submission / RTR blocks surface as a normal server error dialog.
 		});
 	}
 }

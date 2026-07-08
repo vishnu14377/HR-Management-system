@@ -70,6 +70,8 @@ REQUIREMENTS = [
 DEMO_USERS = [
 	("recruiter@racedog.test", "Rhea", "Recruiter", ["Recruiter", "Bench Sales"]),
 	("manager@racedog.test", "Marco", "Manager", ["Recruiting Manager"]),
+	# HR reviews monthly timesheets + runs the compliance report.
+	("hr@racedog.test", "Harper", "HR", ["HR Manager"]),
 ]
 
 # A consultant login so the self-service Consultant Home is explorable. Linked to

@@ -62,6 +62,11 @@ class TestFirewallAllowlists(unittest.TestCase):
 		# Recruiters may set status/hotlist/client on the board, but NEVER a rate.
 		self.assertEqual(_rate_like(api.UPDATABLE_BENCH_FIELDS), [])
 
+	def test_timesheet_read_has_no_rate_fields(self):
+		# The monthly timesheet surface must never carry a dollar/rate/margin field.
+		self.assertEqual(_rate_like(api.TIMESHEET_SAFE_FIELDS), [])
+		self.assertNotIn("total_amount", api.TIMESHEET_SAFE_FIELDS)
+
 	def test_privileged_roles_gate_is_non_empty(self):
 		# A defensive empty gate would let anyone through the row-scope check.
 		from racedog_hr import permissions

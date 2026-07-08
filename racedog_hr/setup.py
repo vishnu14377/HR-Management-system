@@ -46,15 +46,44 @@ def after_migrate() -> None:
 	_apply()
 
 
+OUR_REPORTS = ("Bench Health", "Submission Funnel", "Timesheet Compliance")
+
+
 def _apply() -> None:
 	_setup_permissions()
 	_add_indexes()
 	_migrate_status()
 	_backfill_user_links()
+	_load_report_queries()
 	_surface_list_fields()
 	_debloat()
 	frappe.db.commit()
 	frappe.clear_cache()
+
+
+def _load_report_queries() -> None:
+	"""Load each standard Query Report's `query` from its .sql file.
+
+	Frappe only auto-loads the .sql into the report's `query` field when
+	developer_mode is on. Production installs migrate with it OFF, leaving `query`
+	empty — the report then errors "Must specify a Query to run". Reading the .sql
+	here at migrate time makes the reports work in every environment. Idempotent.
+	"""
+	import os
+
+	from frappe.modules import get_module_path, scrub
+
+	for name in OUR_REPORTS:
+		if not frappe.db.exists("Report", name):
+			continue
+		scrubbed = scrub(name)
+		path = os.path.join(get_module_path("Racedog HR"), "report", scrubbed, f"{scrubbed}.sql")
+		if not os.path.exists(path):
+			continue
+		with open(path) as f:
+			sql = f.read().strip()
+		if sql and frappe.db.get_value("Report", name, "query") != sql:
+			frappe.db.set_value("Report", name, "query", sql)
 
 
 def _backfill_user_links() -> None:

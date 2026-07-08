@@ -18,6 +18,7 @@ theme**, and seeded with demo data. Screenshots are on your Desktop in
 |---|---|---|---|
 | `recruiter@racedog.test` | `racedog123` | **no** (firewall) | Bench Board |
 | `manager@racedog.test` | `racedog123` | **yes** | Bench Board |
+| `hr@racedog.test` | `racedog123` | **no** (HR — reviews timesheets) | Desk |
 | `priya@racedog.test` | `racedog123` | **no** (own record only) | My Home (consultant portal) |
 | `Administrator` | `admin` | yes (admin) | full desk |
 
@@ -48,6 +49,12 @@ is pre-linked in the demo; use the button to onboard the rest.)
   while Working.
 - **Submissions** — bench consultant *or* external candidate (middle-vendor) via a `Source`
   flag; blocks double-submission; auto-fills the requirement when Placed.
+- **Monthly timesheets** — a consultant uploads their client-signed timesheet **PDF** from
+  the *My Timesheets* section of their portal (one per month; re-upload replaces in place).
+  It routes to **HR** (`hr@racedog.test`), who Approves or Rejects-with-reason from the
+  `Consultant Timesheet` form; the consultant is notified either way and can resubmit. HR
+  runs the **Timesheet Compliance** report to see, per client, who's submitted vs **missing**
+  for a month. No rates ever appear on this surface; consultants see only their own.
 
 Recruiters see **only** the "Bench & Requirements" workspace — all the ERPNext/HRMS
 clutter (Accounting, Projects, Manufacturing, Stock, Payroll, etc.) is hidden.

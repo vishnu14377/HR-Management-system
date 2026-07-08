@@ -144,6 +144,27 @@ ALLOWED_DOCUMENT_TYPES = frozenset(
 ALLOWED_DOC_EXTENSIONS = frozenset({"pdf", "doc", "docx", "png", "jpg", "jpeg"})
 MAX_DOC_BYTES = 10 * 1024 * 1024  # 10 MB
 
+# --- Monthly consultant timesheets ---
+# The ONLY Consultant Timesheet fields any read returns. No dollar/rate field exists
+# on that DocType, so there is nothing to leak — this is the firewall by construction.
+TIMESHEET_SAFE_FIELDS = (
+	"name",
+	"period_month",
+	"client",
+	"status",
+	"total_hours",
+	"signed_pdf",
+	"note",
+	"review_note",
+	"submitted_on",
+	"reviewed_on",
+)
+TIMESHEET_STATUSES = frozenset({"Submitted", "Under Review", "Approved", "Rejected"})
+# Months back the portal derives the consultant's "owed" list for.
+TIMESHEET_OWED_LOOKBACK = 6
+# Roles allowed to review (approve/reject) a timesheet — reuse native HR Manager.
+HR_ACTION_ROLES = frozenset({"HR Manager", "Recruiting Manager", "System Manager"})
+
 # Statuses a recruiter may set from the pipeline rail.
 SUBMISSION_STATUSES = frozenset(
 	{
@@ -475,6 +496,181 @@ def upload_my_document(
 	)
 	doc.save(ignore_permissions=True)
 	return {"data": {"file_url": file_doc.file_url, "document_type": document_type}}
+
+
+# ---------------------------------------------------------------------------
+# Monthly consultant timesheets (employee upload + HR review)
+# ---------------------------------------------------------------------------
+
+
+@frappe.whitelist(methods=["POST"])
+def upload_my_timesheet(
+	period_month: str, file_name: str, content: str, total_hours=None, note: str | None = None
+) -> dict:
+	"""Upload (or re-upload) the caller's signed monthly timesheet PDF.
+
+	Upsert by (consultant, period_month): a re-upload replaces the file on the SAME
+	row and re-opens it for review — never a duplicate. An Approved month is locked.
+	"""
+	import re
+
+	emp = _resolve_my_employee()
+	if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", period_month or ""):
+		frappe.throw(_("Pick a valid month (YYYY-MM)."), frappe.exceptions.ValidationError)
+
+	ext = (file_name.rsplit(".", 1)[-1] if "." in file_name else "").lower()
+	if ext != "pdf":
+		frappe.throw(_("The timesheet must be a PDF."), frappe.exceptions.ValidationError)
+
+	import base64
+	import binascii
+
+	raw = content.split(",", 1)[-1] if content.startswith("data:") else content
+	try:
+		decoded = base64.b64decode(raw, validate=True)
+	except (binascii.Error, ValueError):
+		frappe.throw(_("The file could not be read."), frappe.exceptions.ValidationError)
+	if not decoded:
+		frappe.throw(_("The file is empty."), frappe.exceptions.ValidationError)
+	if len(decoded) > MAX_DOC_BYTES:
+		frappe.throw(_("File is too large (max 10 MB)."), frappe.exceptions.ValidationError)
+
+	existing = frappe.db.get_value(
+		"Consultant Timesheet", {"consultant": emp, "period_month": period_month}, "name"
+	)
+	if existing and frappe.db.get_value("Consultant Timesheet", existing, "status") == "Approved":
+		frappe.throw(
+			_("This month is already approved and can't be changed."),
+			frappe.exceptions.ValidationError,
+		)
+
+	# Create the private File first (signed_pdf is mandatory, so the row can't be
+	# inserted without it). Attach it to the timesheet below so HR — who has read
+	# on the timesheet — can view the PDF. Frappe scans the PDF (rejects embedded
+	# JS / corrupt files); turn that into a friendly message.
+	try:
+		file_doc = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": f"TS-{emp}-{period_month}-{file_name}",
+				"is_private": 1,
+				"content": raw,
+				"decode": True,
+			}
+		).insert(ignore_permissions=True)
+	except Exception:
+		frappe.throw(
+			_("That PDF couldn't be read. Please upload a valid, unlocked PDF."),
+			frappe.exceptions.ValidationError,
+		)
+
+	hours = frappe.utils.flt(total_hours) if total_hours else None
+	if existing:
+		doc = frappe.get_doc("Consultant Timesheet", existing)
+		doc.signed_pdf = file_doc.file_url
+		doc.total_hours = hours
+		doc.note = note or None
+		doc.status = "Submitted"
+		doc.review_note = None
+		doc.reviewed_by = None
+		doc.reviewed_on = None
+		doc.save(ignore_permissions=True)
+	else:
+		doc = frappe.get_doc(
+			{
+				"doctype": "Consultant Timesheet",
+				"consultant": emp,
+				"period_month": period_month,
+				"signed_pdf": file_doc.file_url,
+				"total_hours": hours,
+				"note": note or None,
+				"status": "Submitted",
+			}
+		)
+		doc.insert(ignore_permissions=True)
+
+	# Link the file to the timesheet for HR visibility + tidy cleanup.
+	file_doc.db_set({"attached_to_doctype": "Consultant Timesheet", "attached_to_name": doc.name})
+
+	return {"data": {"name": doc.name, "period_month": period_month, "status": doc.status}}
+
+
+@frappe.whitelist()
+def get_my_timesheets() -> dict:
+	"""Return the caller's own timesheets + a derived list of months still owed."""
+	emp = _resolve_my_employee()
+	rows = frappe.get_all(
+		"Consultant Timesheet",
+		filters={"consultant": emp},
+		fields=list(TIMESHEET_SAFE_FIELDS),
+		order_by="period_month desc",
+	)
+
+	# "Owed" = recent prior months with no submission. Whether it's REQUIRED depends
+	# on being currently deployed (Working with a client); on the bench, it's labeled
+	# "not required" rather than "missing".
+	info = frappe.db.get_value(
+		"Employee", emp, ["deployment_status", "current_client"], as_dict=True
+	)
+	required = bool(info and info.current_client and info.deployment_status == "Working")
+	submitted = {r["period_month"] for r in rows}
+	first = frappe.utils.getdate(frappe.utils.nowdate()).replace(day=1)
+	owed = []
+	for i in range(1, TIMESHEET_OWED_LOOKBACK + 1):
+		period = frappe.utils.getdate(frappe.utils.add_months(first, -i)).strftime("%Y-%m")
+		if period not in submitted:
+			owed.append({"period_month": period, "required": required})
+	default_period = (
+		owed[0]["period_month"]
+		if owed
+		else frappe.utils.getdate(frappe.utils.add_months(first, -1)).strftime("%Y-%m")
+	)
+	return {"data": rows, "owed": owed, "default_period": default_period}
+
+
+@frappe.whitelist(methods=["POST"])
+def approve_timesheet(timesheet: str) -> dict:
+	"""HR approves a timesheet. The consultant is notified."""
+	return _review_timesheet(timesheet, "Approved", None)
+
+
+@frappe.whitelist(methods=["POST"])
+def reject_timesheet(timesheet: str, note: str) -> dict:
+	"""HR rejects a timesheet with a mandatory reason. The consultant is notified."""
+	if not (note or "").strip():
+		frappe.throw(_("Add a reason so the consultant knows what to fix."), frappe.exceptions.ValidationError)
+	return _review_timesheet(timesheet, "Rejected", note.strip())
+
+
+def _review_timesheet(timesheet: str, status: str, note: str | None) -> dict:
+	_require_hr_role()
+	if not frappe.db.exists("Consultant Timesheet", timesheet):
+		frappe.throw(_("Timesheet {0} not found.").format(timesheet), frappe.exceptions.DoesNotExistError)
+
+	doc = frappe.get_doc("Consultant Timesheet", timesheet)
+	doc.status = status
+	doc.review_note = note
+	doc.reviewed_by = frappe.session.user
+	doc.reviewed_on = frappe.utils.now_datetime()
+	doc.save(ignore_permissions=True)
+
+	# Tell the consultant (in-app bell). Reject carries the reason.
+	user = frappe.db.get_value("Employee", doc.consultant, "user_id")
+	if user:
+		if status == "Approved":
+			subject = _("Your {0} timesheet was approved.").format(doc.period_month)
+		else:
+			subject = _("Your {0} timesheet needs changes: {1}").format(doc.period_month, note)
+		from racedog_hr.tasks import _notify
+
+		_notify({user}, subject, "Consultant Timesheet", doc.name)
+
+	return {"data": {"name": doc.name, "status": doc.status}}
+
+
+def _require_hr_role() -> None:
+	if not (set(frappe.get_roles()) & HR_ACTION_ROLES):
+		frappe.throw(_("Only HR can review timesheets."), frappe.exceptions.PermissionError)
 
 
 # ---------------------------------------------------------------------------

@@ -49,6 +49,7 @@ scheduler_events = {
 	"daily": [
 		"racedog_hr.tasks.check_visa_expiry",
 		"racedog_hr.tasks.check_bench_availability",
+		"racedog_hr.tasks.check_timesheet_reminders",
 	],
 }
 
@@ -87,8 +88,11 @@ extend_bootinfo = "racedog_hr.boot.boot_session"
 # option colors, so this drives the list indicator).
 doctype_list_js = {"Employee": "public/js/employee_list.js"}
 
-# One-click "Create Portal Login" button on the Employee form (managers/recruiters).
-doctype_js = {"Employee": "public/js/employee.js"}
+# Form scripts: "Create Portal Login" on Employee; HR approve/reject on timesheets.
+doctype_js = {
+	"Employee": "public/js/employee.js",
+	"Consultant Timesheet": "public/js/consultant_timesheet.js",
+}
 
 # BambooHR-inspired theme applied across the whole Desk (bundled -> shared assets).
 app_include_css = "bamboo_theme.bundle.css"

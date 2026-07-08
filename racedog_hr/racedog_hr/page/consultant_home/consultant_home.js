@@ -107,6 +107,12 @@ class ConsultantHome {
 				<div class="rdg-subs">${__("Loading…")}</div>
 			</section>
 
+			<section class="rdg-panel">
+				<div class="rdg-panel-head"><h3>${__("My Timesheets")}</h3><span class="rdg-ts-owed"></span></div>
+				${this.ts_upload_form()}
+				<div class="rdg-ts">${__("Loading…")}</div>
+			</section>
+
 			<section class="rdg-two">
 				<div class="rdg-panel">
 					<div class="rdg-panel-head"><h3>${__("My Documents")}</h3></div>
@@ -123,6 +129,109 @@ class ConsultantHome {
 		this.render_docs(p.documents || []);
 		this.bind_upload();
 		this.bind_edit();
+		this.bind_ts_upload();
+		this.load_timesheets();
+	}
+
+	ts_upload_form() {
+		return `
+			<div class="rdg-upload">
+				<select class="rdg-ts-month" title="${__("Billing month")}"></select>
+				<input class="rdg-ts-hours" type="number" min="0" step="0.5" placeholder="${__("Hours (optional)")}">
+				<input class="rdg-ts-file" type="file" accept=".pdf">
+				<button class="rdg-btn rdg-ts-go">${__("Upload timesheet")}</button>
+			</div>
+			<div class="rdg-u-hint rdg-muted">${__("Upload your client-signed monthly timesheet (PDF, up to 10 MB). HR reviews it. Only you and HR can see it.")}</div>`;
+	}
+
+	load_timesheets() {
+		frappe.call({
+			method: "racedog_hr.api.get_my_timesheets",
+			callback: (r) => this.render_timesheets((r.message && r.message) || {}),
+			error: () => this.$root.find(".rdg-ts").html(`<div class="rdg-muted">${__("Could not load.")}</div>`),
+		});
+	}
+
+	render_timesheets(payload) {
+		const esc = frappe.utils.escape_html;
+		const rows = payload.data || [];
+		const owed = payload.owed || [];
+
+		// Month picker = owed months (most useful) + a couple recent ones, deduped.
+		const months = [];
+		owed.forEach((o) => months.push(o.period_month));
+		const submitted = rows.map((r) => r.period_month);
+		submitted.forEach((m) => { if (!months.includes(m)) months.push(m); });
+		const $sel = this.$root.find(".rdg-ts-month").empty();
+		months.forEach((m) => $sel.append(`<option value="${esc(m)}">${esc(m)}</option>`));
+		if (payload.default_period) $sel.val(payload.default_period);
+
+		// "Owed" banner — only the required ones (bench months aren't chased).
+		const required = owed.filter((o) => o.required).map((o) => o.period_month);
+		const $owed = this.$root.find(".rdg-ts-owed");
+		if (required.length) {
+			$owed.html(`<span class="rdg-count" data-tone="warn">${__("Owed: {0}", [required.join(", ")])}</span>`);
+		} else if (owed.length) {
+			$owed.text(__("Bench months — no timesheet required"));
+		} else {
+			$owed.text(__("All caught up"));
+		}
+
+		const $t = this.$root.find(".rdg-ts");
+		if (!rows.length) {
+			$t.html(`<div class="rdg-muted">${__("No timesheets uploaded yet. Pick the month above and upload your signed PDF.")}</div>`);
+			return;
+		}
+		const TONE = { Submitted: "info", "Under Review": "warn", Approved: "good", Rejected: "muted" };
+		$t.html(
+			rows
+				.map((s) => {
+					const tone = TONE[s.status] || "info";
+					const label = s.status === "Rejected" ? __("Needs changes") : s.status;
+					const hours = s.total_hours ? ` · ${s.total_hours} ${__("hrs")}` : "";
+					return `
+						<div class="rdg-sub">
+							<div class="rdg-sub-main">
+								<div class="rdg-sub-title">${esc(s.period_month)}${esc(hours)}</div>
+								<div class="rdg-sub-sub">
+									${s.signed_pdf ? `<a href="${encodeURI(s.signed_pdf)}" target="_blank" rel="noopener">${__("View PDF")}</a>` : ""}
+									${s.client ? " · " + esc(s.client) : ""}
+								</div>
+								${s.status === "Rejected" && s.review_note ? `<div class="rdg-sub-fb">${__("HR")}: ${esc(s.review_note)}</div>` : ""}
+							</div>
+							<span class="rdg-stage" data-tone="${tone}">${esc(label)}</span>
+						</div>`;
+				})
+				.join("")
+		);
+	}
+
+	bind_ts_upload() {
+		this.$root.find(".rdg-ts-go").on("click", () => {
+			const month = this.$root.find(".rdg-ts-month").val();
+			const hours = this.$root.find(".rdg-ts-hours").val();
+			const fileInput = this.$root.find(".rdg-ts-file")[0];
+			const file = fileInput && fileInput.files && fileInput.files[0];
+			if (!month) { frappe.msgprint(__("Pick a month.")); return; }
+			if (!file) { frappe.msgprint(__("Choose your timesheet PDF.")); return; }
+			if (!/\.pdf$/i.test(file.name)) { frappe.msgprint(__("The timesheet must be a PDF.")); return; }
+			if (file.size > 10 * 1024 * 1024) { frappe.msgprint(__("That file is larger than 10 MB.")); return; }
+			const reader = new FileReader();
+			reader.onload = () => {
+				frappe.call({
+					method: "racedog_hr.api.upload_my_timesheet",
+					args: { period_month: month, file_name: file.name, content: reader.result, total_hours: hours || null },
+					freeze: true,
+					freeze_message: __("Uploading…"),
+					callback: () => {
+						frappe.show_alert({ message: __("Timesheet submitted for {0}", [month]), indicator: "green" }, 4);
+						this.reload();
+					},
+					error: () => frappe.show_alert({ message: __("Upload failed"), indicator: "red" }, 6),
+				});
+			};
+			reader.readAsDataURL(file);
+		});
 	}
 
 	status_card(p) {

@@ -5,7 +5,7 @@ from collections.abc import Iterable
 
 import frappe
 from frappe import _
-from frappe.utils import date_diff, getdate
+from frappe.utils import add_months, date_diff, getdate
 
 # Day-counts before work-auth expiry at which we alert. Firing only on these exact
 # thresholds (rather than every day inside a window) keeps the bell from spamming.
@@ -13,6 +13,10 @@ VISA_ALERT_THRESHOLDS = (90, 60, 30, 14, 7, 1)
 
 # Consultant states that mean "market me" — used for the availability alert.
 MARKETABLE_STATUSES = ("On Bench", "Rolling-Off", "Marketing")
+
+# Days of the month on which to nudge consultants who haven't uploaded the prior
+# month's timesheet yet (a few escalating pokes, not a daily nag).
+TIMESHEET_REMINDER_DAYS = (3, 6, 9)
 
 _SYSTEM_USERS = frozenset({"Administrator", "Guest"})
 
@@ -64,6 +68,35 @@ def check_bench_availability() -> None:
 		if emp.marketing_owner:
 			recipients.add(emp.marketing_owner)
 		_notify(recipients, subject, "Employee", emp.name)
+
+
+def check_timesheet_reminders() -> None:
+	"""Nudge deployed consultants who haven't uploaded last month's timesheet.
+
+	Only the currently-deployed (Working, with a client) owe a timesheet; bench
+	consultants are excluded. Fires on a few days early in the month, not daily.
+	"""
+	today = getdate()
+	if today.day not in TIMESHEET_REMINDER_DAYS:
+		return
+
+	prior = getdate(add_months(today.replace(day=1), -1)).strftime("%Y-%m")
+	employees = frappe.get_all(
+		"Employee",
+		filters={
+			"status": "Active",
+			"deployment_status": "Working",
+			"current_client": ["is", "set"],
+		},
+		fields=["name", "employee_name", "user_id"],
+	)
+	for emp in employees:
+		if not emp.user_id:
+			continue
+		if frappe.db.exists("Consultant Timesheet", {"consultant": emp.name, "period_month": prior}):
+			continue
+		subject = _("Reminder: upload your {0} timesheet").format(prior)
+		_notify({emp.user_id}, subject, "Employee", emp.name)
 
 
 def _users_with_role(role: str) -> list[str]:

@@ -87,5 +87,8 @@ extend_bootinfo = "racedog_hr.boot.boot_session"
 # option colors, so this drives the list indicator).
 doctype_list_js = {"Employee": "public/js/employee_list.js"}
 
+# One-click "Create Portal Login" button on the Employee form (managers/recruiters).
+doctype_js = {"Employee": "public/js/employee.js"}
+
 # BambooHR-inspired theme applied across the whole Desk (bundled -> shared assets).
 app_include_css = "bamboo_theme.bundle.css"

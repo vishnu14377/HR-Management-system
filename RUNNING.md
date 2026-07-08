@@ -24,6 +24,15 @@ theme**, and seeded with demo data. Screenshots are on your Desktop in
 > If a page ever flickers or looks stale, hard-refresh (`Cmd+Shift+R`) or log out/in —
 > that's browser cache, not the app.
 
+### Give a consultant a login (onboarding)
+
+A consultant can only reach their self-service portal once their Employee record is
+linked to a user account. To do it in one click: open the consultant's **Employee**
+record as a manager/recruiter → **Actions → Create Portal Login**. That creates the
+login (with the Employee role), links it, and shows a temporary password to share.
+On next login they land straight on their **My Home** portal. (Only `priya@racedog.test`
+is pre-linked in the demo; use the button to onboard the rest.)
+
 ## What the recruiting team gets
 
 - **Bench Board** (`/app/bench-board`) — the daily dashboard. Consultant cards show

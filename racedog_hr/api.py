@@ -505,6 +505,65 @@ def get_my_pipeline() -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
+def create_consultant_login(employee: str) -> dict:
+	"""Give a consultant portal access in one click (manager/recruiter action).
+
+	Creates (or links) a User with the ``Employee`` role and connects it to the
+	Employee via ``user_id`` — after which the boot hook lands them on their
+	consultant portal. Returns the login email and, for a freshly created user, a
+	temporary password to hand over (they change it on first login).
+	"""
+	_require_recruiting_role()
+
+	if not frappe.db.exists("Employee", employee):
+		frappe.throw(_("Consultant {0} not found.").format(employee), frappe.exceptions.DoesNotExistError)
+
+	emp = frappe.get_doc("Employee", employee)
+	if emp.user_id:
+		return {"data": {"user": emp.user_id, "created": False, "temp_password": None}}
+
+	email = emp.get("company_email") or emp.get("personal_email") or emp.get("prefered_email")
+	if not email:
+		frappe.throw(
+			_("Add a company or personal email to this consultant first, then create the login."),
+			frappe.exceptions.ValidationError,
+		)
+
+	# Creating a User + the Employee's User Permission needs elevated rights that a
+	# recruiting manager doesn't hold directly. The action is already role-gated
+	# above, so run the privileged writes as Administrator and always restore.
+	actor = frappe.session.user
+	try:
+		frappe.set_user("Administrator")
+		temp_password = None
+		if not frappe.db.exists("User", email):
+			temp_password = "Rdg-" + frappe.generate_hash(length=8)
+			user = frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": email,
+					"first_name": emp.get("first_name") or emp.employee_name,
+					"last_name": emp.get("last_name") or "",
+					"send_welcome_email": 0,
+					"user_type": "System User",
+					"roles": [{"role": "Employee"}],
+				}
+			)
+			user.new_password = temp_password
+			user.insert(ignore_permissions=True)
+
+		# Save through the controller so Frappe assigns the Employee role + user
+		# permission, and our link/status hooks run.
+		emp = frappe.get_doc("Employee", employee)
+		emp.user_id = email
+		emp.save(ignore_permissions=True)
+	finally:
+		frappe.set_user(actor)
+
+	return {"data": {"user": email, "created": temp_password is not None, "temp_password": temp_password}}
+
+
+@frappe.whitelist(methods=["POST"])
 def update_submission_status(submission: str, status: str, feedback: str | None = None) -> dict:
 	"""Advance a submission's stage from the pipeline rail. Role-gated, allowlisted.
 

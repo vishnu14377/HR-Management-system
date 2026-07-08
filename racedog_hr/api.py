@@ -164,6 +164,11 @@ TIMESHEET_STATUSES = frozenset({"Submitted", "Under Review", "Approved", "Reject
 TIMESHEET_OWED_LOOKBACK = 6
 # Roles allowed to review (approve/reject) a timesheet — reuse native HR Manager.
 HR_ACTION_ROLES = frozenset({"HR Manager", "Recruiting Manager", "System Manager"})
+# Roles allowed to mint a consultant login (onboarding) — NOT plain recruiters.
+MANAGER_ROLES = frozenset({"Recruiting Manager", "HR Manager", "System Manager"})
+# Caps for user-supplied input at the API boundary (avoid raw DB errors on overflow).
+MAX_NOTE_LEN = 2000
+MAX_HOURS = 1000.0
 
 # Statuses a recruiter may set from the pipeline rail.
 SUBMISSION_STATUSES = frozenset(
@@ -196,6 +201,13 @@ def get_bench(
 	"""Return bench consultants (no rate fields), sorted Red→Orange→Green."""
 	_require_recruiting_role()
 
+	# Clamp pagination so a negative/garbage value can't reach SQL (LIMIT -5 → error).
+	try:
+		start = max(0, int(start))
+		page_length = min(max(1, int(page_length)), 500)
+	except (TypeError, ValueError):
+		start, page_length = 0, 100
+
 	filters: dict = {"status": "Active"}
 	if deployment_status == "All":
 		pass  # every active consultant, incl. Working
@@ -223,8 +235,8 @@ def get_bench(
 		or_filters=or_filters,
 		fields=list(BENCH_FIELDS),
 		order_by="availability_date asc, modified desc",
-		start=int(start),
-		page_length=int(page_length),
+		start=start,
+		page_length=page_length,
 	)
 	rows.sort(key=lambda r: _HOTLIST_ORDER.get(r.get("hotlist"), 3))
 	return {
@@ -301,7 +313,9 @@ def update_bench(employee: str, updates: str | dict) -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
-def create_submission(consultant: str, requirement: str, vendor: str | None = None) -> dict:
+def create_submission(
+	consultant: str | None = None, requirement: str | None = None, vendor: str | None = None
+) -> dict:
 	"""Create a bench-consultant Submission (drag consultant → requirement).
 
 	Runs with the caller's own permissions so the double-submission / RTR
@@ -309,6 +323,8 @@ def create_submission(consultant: str, requirement: str, vendor: str | None = No
 	"""
 	_require_recruiting_role()
 
+	if not consultant or not requirement:
+		frappe.throw(_("Consultant and requirement are required."), frappe.exceptions.ValidationError)
 	if not frappe.db.exists("Employee", consultant):
 		frappe.throw(_("Consultant {0} not found.").format(consultant), frappe.exceptions.DoesNotExistError)
 	if not frappe.db.exists("Client Requirement", requirement):
@@ -409,6 +425,9 @@ def update_my_profile(updates: str | dict) -> dict:
 	doc = frappe.get_doc("Employee", emp)
 	skills = payload.pop("consultant_skills", None)
 	for field, value in payload.items():
+		# Cap free-text so an oversized value can't overflow the column (raw DB 500).
+		if field == "consultant_note" and isinstance(value, str):
+			value = value[:MAX_NOTE_LEN]
 		doc.set(field, value)
 
 	if skills is not None:
@@ -458,6 +477,14 @@ def upload_my_document(
 			frappe.exceptions.ValidationError,
 		)
 
+	# Validate the optional expiry date up front (a bad value would otherwise 500
+	# at the DB layer). Normalize to an ISO date string.
+	if expiry_date:
+		try:
+			expiry_date = frappe.utils.getdate(expiry_date).isoformat()
+		except Exception:
+			frappe.throw(_("Expiry date isn't a valid date."), frappe.exceptions.ValidationError)
+
 	import base64
 	import binascii
 
@@ -491,7 +518,7 @@ def upload_my_document(
 			"document": file_doc.file_url,
 			"expiry_date": expiry_date or None,
 			"uploaded_on": frappe.utils.nowdate(),
-			"notes": notes or None,
+			"notes": (notes or "")[:MAX_NOTE_LEN] or None,
 		},
 	)
 	doc.save(ignore_permissions=True)
@@ -564,17 +591,22 @@ def upload_my_timesheet(
 			frappe.exceptions.ValidationError,
 		)
 
-	hours = frappe.utils.flt(total_hours) if total_hours else None
+	# Clamp hours to a sane range; the signed PDF is the source of truth anyway.
+	hours = min(max(frappe.utils.flt(total_hours), 0.0), MAX_HOURS) if total_hours else None
 	if existing:
 		doc = frappe.get_doc("Consultant Timesheet", existing)
+		old_file = doc.signed_pdf
 		doc.signed_pdf = file_doc.file_url
 		doc.total_hours = hours
-		doc.note = note or None
+		doc.note = (note or "")[:MAX_NOTE_LEN] or None
 		doc.status = "Submitted"
 		doc.review_note = None
 		doc.reviewed_by = None
 		doc.reviewed_on = None
 		doc.save(ignore_permissions=True)
+		# Remove the superseded File so old signed PDFs don't accumulate/stay reachable.
+		if old_file and old_file != file_doc.file_url:
+			_delete_file_by_url(old_file)
 	else:
 		doc = frappe.get_doc(
 			{
@@ -583,7 +615,7 @@ def upload_my_timesheet(
 				"period_month": period_month,
 				"signed_pdf": file_doc.file_url,
 				"total_hours": hours,
-				"note": note or None,
+				"note": (note or "")[:MAX_NOTE_LEN] or None,
 				"status": "Submitted",
 			}
 		)
@@ -635,11 +667,11 @@ def approve_timesheet(timesheet: str) -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
-def reject_timesheet(timesheet: str, note: str) -> dict:
+def reject_timesheet(timesheet: str, note: str | None = None) -> dict:
 	"""HR rejects a timesheet with a mandatory reason. The consultant is notified."""
 	if not (note or "").strip():
 		frappe.throw(_("Add a reason so the consultant knows what to fix."), frappe.exceptions.ValidationError)
-	return _review_timesheet(timesheet, "Rejected", note.strip())
+	return _review_timesheet(timesheet, "Rejected", note.strip()[:MAX_NOTE_LEN])
 
 
 def _review_timesheet(timesheet: str, status: str, note: str | None) -> dict:
@@ -648,6 +680,15 @@ def _review_timesheet(timesheet: str, status: str, note: str | None) -> dict:
 		frappe.throw(_("Timesheet {0} not found.").format(timesheet), frappe.exceptions.DoesNotExistError)
 
 	doc = frappe.get_doc("Consultant Timesheet", timesheet)
+	# Approved is terminal — it can't be re-opened or flipped (would let the
+	# consultant re-upload over a signed-off month). Re-approving is a no-op.
+	if doc.status == "Approved":
+		if status == "Approved":
+			return {"data": {"name": doc.name, "status": doc.status}}
+		frappe.throw(
+			_("This timesheet is already approved and can't be changed."),
+			frappe.exceptions.ValidationError,
+		)
 	doc.status = status
 	doc.review_note = note
 	doc.reviewed_by = frappe.session.user
@@ -708,8 +749,12 @@ def create_consultant_login(employee: str) -> dict:
 	Employee via ``user_id`` — after which the boot hook lands them on their
 	consultant portal. Returns the login email and, for a freshly created user, a
 	temporary password to hand over (they change it on first login).
+
+	Manager-gated: this mints a System User account, so a plain recruiter (who can
+	edit a consultant's email) must not be able to chain it into an account they
+	control. Onboarding is a manager/HR action.
 	"""
-	_require_recruiting_role()
+	_require_manager()
 
 	if not frappe.db.exists("Employee", employee):
 		frappe.throw(_("Consultant {0} not found.").format(employee), frappe.exceptions.DoesNotExistError)
@@ -760,15 +805,18 @@ def create_consultant_login(employee: str) -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
-def update_submission_status(submission: str, status: str, feedback: str | None = None) -> dict:
+def update_submission_status(
+	submission: str | None = None, status: str | None = None, feedback: str | None = None
+) -> dict:
 	"""Advance a submission's stage from the pipeline rail. Role-gated, allowlisted.
 
-	Only ``status`` + ``feedback`` (both permlevel 0) can change — never the
-	permlevel-1 bill rate. Saves through the controller so dedupe / placed-sync /
-	notifications still fire.
+	Only ``status`` + ``feedback`` can change — never a rate. Saves through the
+	controller so dedupe / placed-sync / notifications still fire.
 	"""
 	_require_recruiting_role()
 
+	if not submission or not status:
+		frappe.throw(_("Submission and status are required."), frappe.exceptions.ValidationError)
 	if status not in SUBMISSION_STATUSES:
 		frappe.throw(_("Invalid status: {0}").format(status), frappe.exceptions.ValidationError)
 	if not frappe.db.exists("Submission", submission):
@@ -785,6 +833,17 @@ def update_submission_status(submission: str, status: str, feedback: str | None 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
+
+def _delete_file_by_url(file_url: str) -> None:
+	"""Best-effort delete of a private File by its URL (replacing a prior upload)."""
+	name = frappe.db.get_value("File", {"file_url": file_url}, "name")
+	if not name:
+		return
+	try:
+		frappe.delete_doc("File", name, ignore_permissions=True, force=True)
+	except Exception:
+		pass
 
 
 def _resolve_my_employee() -> str:
@@ -845,4 +904,11 @@ def _require_recruiting_role() -> None:
 	if not (set(frappe.get_roles()) & RECRUITING_ROLES):
 		frappe.throw(
 			_("You do not have access to the Bench Board."), frappe.exceptions.PermissionError
+		)
+
+
+def _require_manager() -> None:
+	if not (set(frappe.get_roles()) & MANAGER_ROLES):
+		frappe.throw(
+			_("Only a manager can do this."), frappe.exceptions.PermissionError
 		)

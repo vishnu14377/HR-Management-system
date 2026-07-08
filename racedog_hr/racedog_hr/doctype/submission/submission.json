@@ -29,8 +29,6 @@
   "submitted_on",
   "section_break_interview",
   "interview_datetime",
-  "section_break_commercials",
-  "submitted_bill_rate",
   "section_break_feedback",
   "feedback"
  ],
@@ -184,19 +182,6 @@
    "label": "Interview Date/Time"
   },
   {
-   "description": "Visible to managers only (permission level 1).",
-   "fieldname": "section_break_commercials",
-   "fieldtype": "Section Break",
-   "label": "Commercials (Manager Only)",
-   "permlevel": 1
-  },
-  {
-   "fieldname": "submitted_bill_rate",
-   "fieldtype": "Currency",
-   "label": "Submitted Bill Rate",
-   "permlevel": 1
-  },
-  {
    "collapsible": 1,
    "fieldname": "section_break_feedback",
    "fieldtype": "Section Break",
@@ -230,14 +215,6 @@
    "write": 1
   },
   {
-   "email": 1,
-   "permlevel": 1,
-   "print": 1,
-   "read": 1,
-   "role": "System Manager",
-   "write": 1
-  },
-  {
    "create": 1,
    "delete": 1,
    "email": 1,
@@ -247,12 +224,6 @@
    "report": 1,
    "role": "Recruiting Manager",
    "share": 1,
-   "write": 1
-  },
-  {
-   "permlevel": 1,
-   "read": 1,
-   "role": "Recruiting Manager",
    "write": 1
   },
   {
@@ -268,13 +239,7 @@
    "write": 1
   },
   {
-   "permlevel": 1,
-   "read": 1,
-   "role": "Account Manager"
-  },
-  {
    "create": 1,
-   "delete": 1,
    "email": 1,
    "export": 1,
    "print": 1,
@@ -286,7 +251,6 @@
   },
   {
    "create": 1,
-   "delete": 1,
    "email": 1,
    "export": 1,
    "print": 1,

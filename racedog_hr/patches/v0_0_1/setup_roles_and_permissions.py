@@ -12,16 +12,16 @@ from frappe.permissions import add_permission, update_permission_property
 RECRUITING_ROLES = ("Recruiter", "Bench Sales", "Recruiting Manager", "Account Manager")
 
 # (role, permlevel, [ptypes]) grants applied to the standard Employee DocType.
+# NOTE: bill/pay/margin moved OFF Employee to the manager-only Consultant Billing
+# DocType, so Employee no longer has any permlevel-1 field — the old permlevel-1
+# grants here are gone (they'd be harmless no-ops, and HR must not see rates).
 EMPLOYEE_GRANTS = (
 	# "report" is required to run query reports (e.g. Bench Health) on Employee.
 	("Recruiter", 0, ("read", "write", "report")),
 	("Bench Sales", 0, ("read", "write", "report")),
 	# The manager owns the consultant master — full CRUD, incl. create + delete.
 	("Recruiting Manager", 0, ("read", "write", "create", "delete", "report")),
-	("Recruiting Manager", 1, ("read", "write")),
 	("Account Manager", 0, ("read", "report")),
-	("Account Manager", 1, ("read",)),
-	("HR Manager", 1, ("read", "write")),
 )
 
 

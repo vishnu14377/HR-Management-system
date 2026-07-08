@@ -76,9 +76,11 @@ doc_events = {
 # ---------------------------------------------------------------------------
 permission_query_conditions = {
 	"Employee": "racedog_hr.permissions.employee_query_conditions",
+	"File": "racedog_hr.permissions.file_query_conditions",
 }
 has_permission = {
 	"Employee": "racedog_hr.permissions.employee_has_permission",
+	"File": "racedog_hr.permissions.file_has_permission",
 }
 
 # Land pure consultants on their self-service portal (not the empty welcome page).

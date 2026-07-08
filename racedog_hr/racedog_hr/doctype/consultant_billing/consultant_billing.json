@@ -1,0 +1,106 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:consultant",
+ "creation": "2026-07-08 00:00:00.000000",
+ "description": "Confidential bill/pay/margin for a consultant. Isolated in its own DocType so only manager roles have ANY access — recruiters/consultants/HR cannot read, filter, or order-by these values (which a permlevel-1 field on Employee still leaks via WHERE/ORDER BY).",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "consultant",
+  "employee_name",
+  "column_break_main",
+  "bill_rate",
+  "pay_rate",
+  "margin"
+ ],
+ "fields": [
+  {
+   "fieldname": "consultant",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Consultant",
+   "options": "Employee",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fetch_from": "consultant.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bill_rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Bill Rate (client pays)"
+  },
+  {
+   "fieldname": "pay_rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Pay Rate (we pay)"
+  },
+  {
+   "description": "Auto-computed: Bill Rate minus Pay Rate.",
+   "fieldname": "margin",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Margin",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-07-08 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Racedog HR",
+ "name": "Consultant Billing",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Recruiting Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Account Manager"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

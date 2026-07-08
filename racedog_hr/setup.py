@@ -49,16 +49,74 @@ def after_migrate() -> None:
 OUR_REPORTS = ("Bench Health", "Submission Funnel", "Timesheet Compliance")
 
 
+RATE_CUSTOM_FIELDS = (
+	"current_bill_rate",
+	"current_pay_rate",
+	"margin",
+	"racedog_rates_section",
+	"racedog_rates_col",
+)
+
+
 def _apply() -> None:
 	_setup_permissions()
 	_add_indexes()
 	_migrate_status()
 	_backfill_user_links()
+	_migrate_rates_to_billing()
 	_load_report_queries()
 	_surface_list_fields()
 	_debloat()
 	frappe.db.commit()
 	frappe.clear_cache()
+
+
+def _migrate_rates_to_billing() -> None:
+	"""Move legacy Employee bill/pay/margin into the manager-only Consultant Billing
+	DocType, then drop the old Employee rate custom fields.
+
+	Those fields were permlevel 1, which hides them from query OUTPUT but still lets
+	a recruiter/consultant recover exact values via WHERE / ORDER BY on Employee. A
+	separate DocType only manager roles can touch removes the field entirely from
+	every surface they can query. Idempotent: once the column is gone it no-ops, and
+	a fresh install (no legacy column) just seeds Consultant Billing directly.
+	"""
+	if not frappe.db.exists("DocType", "Consultant Billing"):
+		return
+
+	if frappe.db.has_column("Employee", "current_bill_rate"):
+		rows = frappe.db.sql(
+			"""select name, current_bill_rate, current_pay_rate from `tabEmployee`
+			   where current_bill_rate is not null or current_pay_rate is not null""",
+			as_dict=True,
+		)
+		for r in rows:
+			if frappe.db.exists("Consultant Billing", r.name):
+				continue
+			frappe.get_doc(
+				{
+					"doctype": "Consultant Billing",
+					"consultant": r.name,
+					"bill_rate": r.current_bill_rate or 0,
+					"pay_rate": r.current_pay_rate or 0,
+				}
+			).insert(ignore_permissions=True)
+
+	# Fixture removal doesn't delete existing custom fields — drop them explicitly.
+	for fieldname in RATE_CUSTOM_FIELDS:
+		cf = f"Employee-{fieldname}"
+		if frappe.db.exists("Custom Field", cf):
+			frappe.delete_doc("Custom Field", cf, ignore_permissions=True, force=True)
+
+	# Deleting the custom field removes it from the meta (closing the client-API
+	# side-channel) but leaves an orphaned column. Drop the columns physically so
+	# no query path — internal ORM or raw — can filter/order by them anymore.
+	for column in ("current_bill_rate", "current_pay_rate", "margin"):
+		if frappe.db.has_column("Employee", column):
+			try:
+				frappe.db.sql_ddl(f"alter table `tabEmployee` drop column `{column}`")
+			except Exception:
+				frappe.log_error(f"racedog_hr: could not drop Employee.{column}", "racedog_hr setup")
 
 
 def _load_report_queries() -> None:

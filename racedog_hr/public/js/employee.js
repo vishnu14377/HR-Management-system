@@ -20,6 +20,20 @@ frappe.ui.form.on("Employee", {
 			return;
 		}
 
+		// Rates live on the manager-only Consultant Billing DocType (not on this
+		// form). Give managers a one-click way to open/create it.
+		if (frappe.user.has_role(["Recruiting Manager", "Account Manager", "System Manager"])) {
+			frm.add_custom_button(__("Billing"), () => {
+				frappe.db.exists("Consultant Billing", frm.doc.name).then((exists) => {
+					if (exists) {
+						frappe.set_route("Form", "Consultant Billing", frm.doc.name);
+					} else {
+						frappe.new_doc("Consultant Billing", { consultant: frm.doc.name });
+					}
+				});
+			});
+		}
+
 		frm.add_custom_button(
 			__("Create Portal Login"),
 			() => {

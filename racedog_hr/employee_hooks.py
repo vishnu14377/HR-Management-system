@@ -3,12 +3,11 @@
 
 Encodes the bench-sales rule: Status is *what they're doing*, Hotlist is *how hard
 we push*. A billing (Working) consultant is never on the market, so Hotlist locks to
-Green; Marketing defaults to Red, On Bench to Orange. Margin is derived from the
-manager-only rates.
+Green; Marketing defaults to Red, On Bench to Orange. (Bill/pay/margin now live on
+the separate manager-only Consultant Billing DocType, not on Employee.)
 """
 
 import frappe
-from frappe.utils import flt
 
 
 def apply_status_rules(doc, method: str | None = None) -> None:
@@ -25,9 +24,6 @@ def apply_status_rules(doc, method: str | None = None) -> None:
 	# project, just ending — so it keeps its client and gets marketed early).
 	if status not in ("Working", "Rolling-Off"):
 		doc.current_client = None
-
-	# Margin is a manager-only computed number (server bypasses permlevel).
-	doc.margin = flt(doc.get("current_bill_rate")) - flt(doc.get("current_pay_rate"))
 
 
 def link_user_id(doc, method: str | None = None) -> None:

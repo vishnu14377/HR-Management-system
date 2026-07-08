@@ -181,11 +181,19 @@ def _consultants():
 					"visa_expiry": add_days(nowdate(), 120),
 					"availability_date": add_days(nowdate(), avail_offset),
 					"bench_start_date": add_days(nowdate(), min(avail_offset, 0)),
-					"current_bill_rate": bill,
-					"current_pay_rate": pay,
 				}
 			).insert(ignore_permissions=True)
 			created.append(doc.name)
+			# Rates live on the manager-only Consultant Billing DocType, not Employee.
+			if not frappe.db.exists("Consultant Billing", doc.name):
+				frappe.get_doc(
+					{
+						"doctype": "Consultant Billing",
+						"consultant": doc.name,
+						"bill_rate": bill,
+						"pay_rate": pay,
+					}
+				).insert(ignore_permissions=True)
 		except Exception as e:
 			print(f"  consultant {first} {last} skipped: {repr(e)[:160]}")
 	return created
@@ -391,7 +399,8 @@ def _finish_setup():
 
 
 def verify():
-	"""Prove the rate/margin firewall: recruiter can't see rates, manager can.
+	"""Prove the rate firewall: ONLY managers read rates (Consultant Billing), and the
+	permlevel WHERE/ORDER-BY side-channel is closed (rate fields no longer on Employee).
 
 	Run: from racedog_hr.demo import verify; verify()
 	"""
@@ -402,15 +411,16 @@ def verify():
 
 	bench = get_bench()
 	report["recruiter_bench_rows"] = len(bench["data"])
-	report["recruiter_api_leaks_rate"] = any(
-		"rate" in key for row in bench["data"] for key in row
-	)
-	report["recruiter_getlist_rate"] = _peek_rate()
+	report["recruiter_api_leaks_rate"] = any("rate" in key for row in bench["data"] for key in row)
+	report["recruiter_billing_read"] = _peek_rate()  # expect BLOCKED
+	report["recruiter_sidechannel"] = _sidechannel_status()  # expect closed
+
+	frappe.set_user("hr@racedog.test")
+	report["hr_billing_read"] = _peek_rate()  # expect BLOCKED (HR no longer sees rates)
 
 	frappe.set_user("manager@racedog.test")
-	report["manager_getlist_rate"] = _peek_rate()
+	report["manager_billing_read"] = _peek_rate()  # expect VISIBLE
 
-	# Consultant self-service firewall: sees only self, no rate, board is blocked.
 	if frappe.db.exists("User", DEMO_CONSULTANT[0]):
 		frappe.set_user(DEMO_CONSULTANT[0])
 		from racedog_hr.api import get_my_profile, get_bench as _get_bench
@@ -421,9 +431,9 @@ def verify():
 			report["consultant_profile_leaks_rate"] = any("rate" in k or k == "margin" for k in profile)
 		except Exception as e:
 			report["consultant_profile"] = f"ERROR({type(e).__name__})"
-		# get_list applies permission_query_conditions (db.count would NOT) -> expect 1.
 		report["consultant_employees_visible"] = len(frappe.get_list("Employee", limit=0))
-		report["consultant_getlist_rate"] = _peek_rate()
+		report["consultant_billing_read"] = _peek_rate()  # expect BLOCKED
+		report["consultant_sidechannel"] = _sidechannel_status()  # expect closed
 		try:
 			_get_bench()
 			report["consultant_board_blocked"] = False
@@ -436,17 +446,30 @@ def verify():
 
 
 def _peek_rate():
-	"""Return the current_bill_rate the current user can read (or how it was blocked)."""
+	"""What bill_rate the current user can read from Consultant Billing (or how blocked)."""
 	try:
 		rows = frappe.get_list(
-			"Employee", fields=["name", "current_bill_rate"], limit=1, order_by="creation asc"
+			"Consultant Billing", fields=["name", "bill_rate"], limit=1, order_by="creation asc"
 		)
+	except frappe.exceptions.PermissionError:
+		return "BLOCKED(PermissionError)"
 	except Exception as e:
 		return f"BLOCKED({type(e).__name__})"
 	if not rows:
 		return "no-rows"
-	value = rows[0].get("current_bill_rate")
+	value = rows[0].get("bill_rate")
 	return "hidden" if value in (None, 0) else f"VISIBLE({value})"
+
+
+def _sidechannel_status():
+	"""Confirm the old permlevel WHERE side-channel is dead: filtering Employee by a
+	rate field must now error (the column no longer exists). 'closed' = good.
+	"""
+	try:
+		frappe.get_list("Employee", filters={"current_bill_rate": [">=", 100]}, limit=1)
+		return "OPEN(still filterable!)"
+	except Exception:
+		return "closed"
 
 
 def reset():

@@ -12,7 +12,7 @@ never rolls the whole thing back.
 """
 
 import frappe
-from frappe.utils import add_days, nowdate
+from frappe.utils import add_days, add_months, getdate, now_datetime, nowdate
 
 COMPANY = "RaceDog Technologies"
 DEMO_PASSWORD = "racedog123"
@@ -93,6 +93,7 @@ def seed():
 	_run("submissions", lambda: _submissions(consultants, requirements))
 	_run("users", _users)
 	_run("consultant_login", _consultant_login)
+	_run("timesheets", _timesheets)
 	summary = {
 		"company": frappe.db.count("Company"),
 		"consultants": frappe.db.count("Employee", {"status": "Active"}),
@@ -327,6 +328,84 @@ def _users():
 			user.insert(ignore_permissions=True)
 		except Exception as e:
 			print(f"  user {email} skipped: {repr(e)[:160]}")
+
+
+# consultant, months back, status, hours — seeded so HR has something to review and
+# the compliance report shows a real mix (submitted vs missing).
+DEMO_TIMESHEETS = [
+	("Priya Nair", 2, "Approved", 168),
+	("Priya Nair", 1, "Submitted", 160),
+	("Sofia Reyes", 1, "Approved", 176),
+]
+
+
+def _timesheets():
+	"""Seed monthly timesheets (real PDFs) for the HR review + compliance demo.
+
+	Also places Sofia on a client so the compliance report has two deployed
+	consultants — one who submitted and one (Liam) who hasn't = a MISSING row.
+	"""
+	try:
+		import base64
+		import io
+
+		from pypdf import PdfWriter
+
+		writer = PdfWriter()
+		writer.add_blank_page(width=200, height=200)
+		buf = io.BytesIO()
+		writer.write(buf)
+		pdf_b64 = base64.b64encode(buf.getvalue()).decode()
+	except Exception as e:
+		print(f"  timesheets skipped (no pypdf): {repr(e)[:120]}")
+		return
+
+	# Deploy Sofia so the compliance report isn't a single row.
+	sofia = frappe.db.get_value("Employee", {"employee_name": "Sofia Reyes"}, "name")
+	if sofia and frappe.db.exists("Client", "Meridian Health"):
+		frappe.db.set_value(
+			"Employee", sofia, {"deployment_status": "Working", "current_client": "Meridian Health"}
+		)
+
+	first_of_month = getdate(nowdate()).replace(day=1)
+	for name, months_back, status, hours in DEMO_TIMESHEETS:
+		emp = frappe.db.get_value("Employee", {"employee_name": name}, "name")
+		if not emp:
+			continue
+		period = getdate(add_months(first_of_month, -months_back)).strftime("%Y-%m")
+		if frappe.db.exists("Consultant Timesheet", {"consultant": emp, "period_month": period}):
+			continue
+		try:
+			file_doc = frappe.get_doc(
+				{
+					"doctype": "File",
+					"file_name": f"TS-{emp}-{period}.pdf",
+					"is_private": 1,
+					"content": pdf_b64,
+					"decode": True,
+				}
+			).insert(ignore_permissions=True)
+			ts = frappe.get_doc(
+				{
+					"doctype": "Consultant Timesheet",
+					"consultant": emp,
+					"period_month": period,
+					"signed_pdf": file_doc.file_url,
+					"total_hours": hours,
+					"status": status,
+				}
+			).insert(ignore_permissions=True)
+			file_doc.db_set(
+				{"attached_to_doctype": "Consultant Timesheet", "attached_to_name": ts.name}
+			)
+			if status == "Approved":
+				frappe.db.set_value(
+					"Consultant Timesheet",
+					ts.name,
+					{"reviewed_by": "hr@racedog.test", "reviewed_on": now_datetime()},
+				)
+		except Exception as e:
+			print(f"  timesheet {name} {period} skipped: {repr(e)[:160]}")
 
 
 def _consultant_login():

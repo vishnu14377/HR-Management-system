@@ -12,8 +12,9 @@ frappe.query_reports["Timesheet Compliance"] = {
 		},
 	],
 	formatter(value, row, column, data, default_formatter) {
+		const raw = value;
 		value = default_formatter(value, row, column, data);
-		if (column.fieldname === "Status" || column.label === "Status") {
+		if (column && (column.label === "Status" || column.fieldname === "status")) {
 			const colors = {
 				Missing: "#e5484d",
 				Rejected: "#f5a524",
@@ -21,8 +22,8 @@ frappe.query_reports["Timesheet Compliance"] = {
 				"Under Review": "#a5731a",
 				Approved: "#3f7a1e",
 			};
-			const c = colors[data && data.Status];
-			if (c) value = `<span style="color:${c};font-weight:600">${value}</span>`;
+			const c = colors[raw];
+			if (c) value = `<span style="color:${c};font-weight:700">${value}</span>`;
 		}
 		return value;
 	},

@@ -14,11 +14,10 @@ frappe.ui.form.on("Employee", {
 		]);
 		if (!canOnboard) return;
 
-		if (frm.doc.user_id) {
-			// Already has a login — show a gentle indicator, no button.
-			frm.dashboard.add_indicator(__("Portal login: {0}", [frm.doc.user_id]), "green");
-			return;
-		}
+		// Submissions + interview history + client feedback for this candidate.
+		frm.add_custom_button(__("Pipeline & Interviews"), () => {
+			frappe.set_route("candidate-pipeline", { consultant: frm.doc.name });
+		});
 
 		// Rates live on the manager-only Consultant Billing DocType (not on this
 		// form). Give managers a one-click way to open/create it.
@@ -33,6 +32,14 @@ frappe.ui.form.on("Employee", {
 				});
 			});
 		}
+
+		// Already linked -> show a gentle indicator; otherwise offer the one-click
+		// login (manager-gated, so only show it to managers).
+		if (frm.doc.user_id) {
+			frm.dashboard.add_indicator(__("Portal login: {0}", [frm.doc.user_id]), "green");
+			return;
+		}
+		if (!frappe.user.has_role(["Recruiting Manager", "HR Manager", "System Manager"])) return;
 
 		frm.add_custom_button(
 			__("Create Portal Login"),

@@ -341,12 +341,20 @@ class ConsultantHome {
 						? __("Submitted {0}", [frappe.datetime.str_to_user(s.submitted_on)])
 						: "";
 					const client = s.client ? esc(s.client) : __("(client shared at interview)");
+					// Candidate-safe interview rounds — date/type/outcome only, NO feedback.
+					const OUT = { Scheduled: "info", Cleared: "good", Rejected: "muted", "On Hold": "warn", "No Show": "muted" };
+					const rounds = (s.interviews || [])
+						.map((iv) => {
+							const d = iv.interview_date ? frappe.datetime.str_to_user(iv.interview_date) : __("TBD");
+							return `<span class="rdg-ivr" data-tone="${OUT[iv.outcome] || "info"}">${__("R{0}", [iv.round_no])} ${esc(iv.mode || "")} · ${esc(iv.outcome || "")} · ${esc(d)}</span>`;
+						})
+						.join("");
 					return `
 						<div class="rdg-sub">
 							<div class="rdg-sub-main">
 								<div class="rdg-sub-title">${esc(s.requirement_title || s.requirement)}</div>
 								<div class="rdg-sub-sub">${client} · ${esc(when)}</div>
-								${s.feedback ? `<div class="rdg-sub-fb">${esc(s.feedback)}</div>` : ""}
+								${rounds ? `<div class="rdg-ivrs">${rounds}</div>` : ""}
 							</div>
 							<span class="rdg-stage" data-tone="${stage.tone}">${esc(stage.label)}</span>
 						</div>`;

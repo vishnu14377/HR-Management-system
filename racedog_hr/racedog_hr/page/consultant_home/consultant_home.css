@@ -203,6 +203,14 @@
 .rdg-sub-title { font-weight: 600; font-size: 14px; }
 .rdg-sub-sub { color: var(--rdg-muted); font-size: 12.5px; margin-top: 2px; }
 .rdg-sub-fb { color: var(--rdg-text); font-size: 12.5px; margin-top: 6px; font-style: italic; }
+.rdg-ivrs { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.rdg-ivr {
+	font-size: 11.5px; padding: 3px 9px; border-radius: 999px;
+	background: var(--rdg-surface-2); border: 1px solid var(--rdg-border); color: var(--rdg-muted);
+}
+.rdg-ivr[data-tone="good"] { border-color: #b7dfa0; color: #3f7a1e; }
+.rdg-ivr[data-tone="warn"] { border-color: #f0d29a; color: #a5731a; }
+.rdg-ivr[data-tone="muted"] { color: #6a7280; }
 .rdg-stage {
 	flex: 0 0 auto;
 	padding: 4px 11px;

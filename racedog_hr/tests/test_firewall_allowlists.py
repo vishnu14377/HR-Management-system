@@ -67,6 +67,14 @@ class TestFirewallAllowlists(unittest.TestCase):
 		self.assertEqual(_rate_like(api.TIMESHEET_SAFE_FIELDS), [])
 		self.assertNotIn("total_amount", api.TIMESHEET_SAFE_FIELDS)
 
+	def test_candidate_submission_view_hides_feedback(self):
+		# A candidate must never see interview/submission feedback about themselves.
+		self.assertNotIn("feedback", api.CANDIDATE_SUBMISSION_FIELDS)
+		self.assertNotIn("client_feedback", api.CANDIDATE_INTERVIEW_FIELDS)
+		self.assertNotIn("weak_areas", api.CANDIDATE_INTERVIEW_FIELDS)
+		# The recruiter/manager view IS allowed to carry it.
+		self.assertIn("client_feedback", api.INTERVIEW_FIELDS)
+
 	def test_privileged_roles_gate_is_non_empty(self):
 		# A defensive empty gate would let anyone through the row-scope check.
 		from racedog_hr import permissions

@@ -29,6 +29,7 @@
   "submitted_on",
   "section_break_interview",
   "interview_datetime",
+  "interviews",
   "section_break_feedback",
   "feedback"
  ],
@@ -177,15 +178,23 @@
    "label": "Interview"
   },
   {
+   "description": "First / next scheduled round. Full round-by-round history is in the Interviews table below.",
    "fieldname": "interview_datetime",
    "fieldtype": "Datetime",
-   "label": "Interview Date/Time"
+   "label": "Next Interview"
+  },
+  {
+   "description": "Each interview round: date, type, outcome, and the client feedback for that round (recruiter/manager only — never shown to the candidate).",
+   "fieldname": "interviews",
+   "fieldtype": "Table",
+   "label": "Interviews",
+   "options": "Submission Interview"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_feedback",
    "fieldtype": "Section Break",
-   "label": "Feedback"
+   "label": "Overall Feedback (internal)"
   },
   {
    "fieldname": "feedback",

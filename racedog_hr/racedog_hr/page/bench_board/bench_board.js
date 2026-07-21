@@ -238,6 +238,7 @@ class BenchBoard {
 				</div>
 				<div class="rdg-card-foot">
 					<span class="rdg-pill" data-s="${esc(row.deployment_status || "")}">${esc(row.deployment_status || "-")}</span>
+					<button class="rdg-btn is-ghost rdg-history">${__("History")}</button>
 					<button class="rdg-btn rdg-market">${__("Market")}</button>
 				</div>
 				<div class="rdg-avail">${esc(avail)}</div>
@@ -245,6 +246,9 @@ class BenchBoard {
 		`);
 
 		$card.find(".rdg-market").on("click", () => this.open_submit_dialog(row));
+		$card.find(".rdg-history").on("click", () =>
+			frappe.set_route("candidate-pipeline", { consultant: row.name })
+		);
 		$card.on("dragstart", (e) => {
 			e.originalEvent.dataTransfer.setData("text/employee", row.name);
 			e.originalEvent.dataTransfer.setData("text/name", row.employee_name || row.name);

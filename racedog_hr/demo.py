@@ -91,6 +91,7 @@ def seed():
 	_run("documents", lambda: _documents(consultants))
 	requirements = _run("requirements", _requirements) or []
 	_run("submissions", lambda: _submissions(consultants, requirements))
+	_run("interviews", _interviews)
 	_run("users", _users)
 	_run("consultant_login", _consultant_login)
 	_run("timesheets", _timesheets)
@@ -406,6 +407,46 @@ def _timesheets():
 				)
 		except Exception as e:
 			print(f"  timesheet {name} {period} skipped: {repr(e)[:160]}")
+
+
+def _interviews():
+	"""Add a multi-round interview history (with client feedback) to Priya's
+	submission so the Candidate Pipeline demo has a real story: cleared two rounds,
+	rejected at the client round with recorded weak areas + feedback."""
+	priya = frappe.db.get_value("Employee", {"employee_name": "Priya Nair"}, "name")
+	if not priya:
+		return
+	sub = frappe.db.get_value(
+		"Submission", {"consultant": priya, "source": "Bench Consultant"}, "name"
+	)
+	if not sub:
+		return
+	doc = frappe.get_doc("Submission", sub)
+	if doc.get("interviews"):
+		return
+	rounds = [
+		(1, -14, "Screening", "Apex Global recruiter", "Cleared", None, "Strong communicator; cleared the screen."),
+		(2, -9, "Technical", "Client — 2 senior engineers", "Cleared", None, "Solid Python + REST; client happy to proceed."),
+		(3, -4, "Client Round", "Engineering Manager", "Rejected", "System Design, AWS depth",
+		 "Good coder, but system-design answers were shallow and AWS hands-on was thin. Client chose another profile."),
+	]
+	for rn, days, mode, panel, outcome, weak, fb in rounds:
+		doc.append(
+			"interviews",
+			{
+				"round_no": rn,
+				"interview_date": add_days(nowdate(), days),
+				"mode": mode,
+				"interviewer": panel,
+				"outcome": outcome,
+				"weak_areas": weak,
+				"client_feedback": fb,
+			},
+		)
+	doc.interview_datetime = add_days(nowdate(), -4)
+	doc.status = "Rejected"
+	doc.feedback = "Client passed after round 3 — reusing profile for the next Python req."
+	doc.save(ignore_permissions=True)
 
 
 def _consultant_login():

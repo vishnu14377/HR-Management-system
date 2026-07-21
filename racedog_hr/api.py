@@ -101,6 +101,7 @@ MY_PROFILE_FIELDS = (
 
 # The ONLY Submission fields any self/pipeline read returns — NEVER the
 # permlevel-1 submitted_bill_rate.
+# Recruiter/manager view of a submission — includes internal feedback (never rates).
 SUBMISSION_SAFE_FIELDS = (
 	"name",
 	"requirement",
@@ -111,6 +112,29 @@ SUBMISSION_SAFE_FIELDS = (
 	"submitted_on",
 	"interview_datetime",
 	"feedback",
+)
+# Candidate self-view — status + schedule ONLY. NO feedback of any kind (the whole
+# point: recruiters record client feedback the candidate must never see).
+CANDIDATE_SUBMISSION_FIELDS = (
+	"name",
+	"requirement",
+	"client",
+	"status",
+	"source",
+	"submitted_on",
+	"interview_datetime",
+)
+# Interview round fields the CANDIDATE may see — date/type/outcome, no feedback.
+CANDIDATE_INTERVIEW_FIELDS = ("round_no", "interview_date", "mode", "outcome")
+# Interview round fields the RECRUITER/MANAGER sees — includes client feedback.
+INTERVIEW_FIELDS = (
+	"round_no",
+	"interview_date",
+	"mode",
+	"interviewer",
+	"outcome",
+	"weak_areas",
+	"client_feedback",
 )
 
 # Before these stages the end-client name is hidden from the consultant
@@ -380,16 +404,18 @@ def get_my_profile() -> dict:
 
 @frappe.whitelist()
 def get_my_submissions() -> dict:
-	"""Return the calling consultant's own submissions, rate-excluded.
+	"""Return the calling consultant's own submissions — status + schedule ONLY.
 
-	Client name is masked until the interview stage (account protection: the
-	recruiter owns the client relationship until an interview is booked).
+	NO feedback of any kind (client feedback / weak areas are recruiter-only). Client
+	name is masked until the interview stage (the recruiter owns the client
+	relationship until an interview is booked). Interview rounds show date/type/
+	outcome so the candidate knows where they stand — never the feedback.
 	"""
 	emp = _resolve_my_employee()
 	rows = frappe.get_all(
 		"Submission",
 		filters={"source": "Bench Consultant", "consultant": emp},
-		fields=list(SUBMISSION_SAFE_FIELDS),
+		fields=list(CANDIDATE_SUBMISSION_FIELDS),
 		order_by="submitted_on desc",
 		page_length=200,
 	)
@@ -398,6 +424,13 @@ def get_my_submissions() -> dict:
 		r["requirement_title"] = titles.get(r.get("requirement"), r.get("requirement"))
 		if r.get("status") in PRE_INTERVIEW_STATUSES:
 			r["client"] = None  # hide the end client until interview stage
+		# Candidate-safe interview rounds: date/type/outcome, NEVER feedback fields.
+		r["interviews"] = frappe.get_all(
+			"Submission Interview",
+			filters={"parent": r["name"], "parenttype": "Submission"},
+			fields=list(CANDIDATE_INTERVIEW_FIELDS),
+			order_by="round_no asc",
+		)
 	return {"data": rows, "meta": {"returned": len(rows)}}
 
 
@@ -739,6 +772,78 @@ def get_my_pipeline() -> dict:
 		r["requirement_title"] = titles.get(r.get("requirement"), r.get("requirement"))
 		r["candidate"] = names.get(r.get("name"))
 	return {"data": rows, "meta": {"returned": len(rows)}}
+
+
+@frappe.whitelist()
+def get_candidate_pipeline(consultant: str) -> dict:
+	"""Recruiter/manager view of ONE candidate: every submission with its full
+	round-by-round interview history AND the client feedback per round.
+
+	Recruiter/manager-only — this is the surface that carries the client feedback a
+	candidate must never see. No rate field is ever included.
+	"""
+	_require_recruiting_role()
+	if not frappe.db.exists("Employee", consultant):
+		frappe.throw(_("Consultant {0} not found.").format(consultant), frappe.exceptions.DoesNotExistError)
+
+	candidate_name = frappe.db.get_value("Employee", consultant, "employee_name")
+	subs = frappe.get_all(
+		"Submission",
+		filters={"consultant": consultant},
+		fields=list(SUBMISSION_SAFE_FIELDS),
+		order_by="submitted_on desc",
+		page_length=200,
+	)
+	titles = _requirement_titles([s.get("requirement") for s in subs])
+	for s in subs:
+		s["requirement_title"] = titles.get(s.get("requirement"), s.get("requirement"))
+		# Full interview rounds INCLUDING weak_areas + client_feedback (internal).
+		s["interviews"] = frappe.get_all(
+			"Submission Interview",
+			filters={"parent": s["name"], "parenttype": "Submission"},
+			fields=list(INTERVIEW_FIELDS),
+			order_by="round_no asc",
+		)
+	return {"data": {"consultant": consultant, "candidate": candidate_name, "submissions": subs}}
+
+
+@frappe.whitelist(methods=["POST"])
+def add_interview(
+	submission: str | None = None,
+	interview_date: str | None = None,
+	mode: str | None = None,
+	interviewer: str | None = None,
+	outcome: str | None = None,
+	weak_areas: str | None = None,
+	client_feedback: str | None = None,
+) -> dict:
+	"""Append an interview round (with client feedback) to a submission. Recruiter/
+	manager-only; the next round number is assigned automatically."""
+	_require_recruiting_role()
+	if not submission or not frappe.db.exists("Submission", submission):
+		frappe.throw(_("Submission not found."), frappe.exceptions.DoesNotExistError)
+
+	doc = frappe.get_doc("Submission", submission)
+	next_round = max((row.round_no or 0 for row in doc.interviews), default=0) + 1
+	doc.append(
+		"interviews",
+		{
+			"round_no": next_round,
+			"interview_date": interview_date or None,
+			"mode": mode or "Technical",
+			"interviewer": (interviewer or "")[:140] or None,
+			"outcome": outcome or "Scheduled",
+			"weak_areas": (weak_areas or "")[:MAX_NOTE_LEN] or None,
+			"client_feedback": (client_feedback or "")[:MAX_NOTE_LEN] or None,
+		},
+	)
+	# Keep the header "next interview" pointer + status roughly in step.
+	if interview_date:
+		doc.interview_datetime = interview_date
+		if doc.status in ("Submitted", "Under Review"):
+			doc.status = "Interview Scheduled"
+	doc.save(ignore_permissions=True)
+	return {"data": {"submission": doc.name, "round_no": next_round}}
 
 
 @frappe.whitelist(methods=["POST"])
